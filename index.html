@@ -1,0 +1,1524 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Mis gastos</title>
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Gastos">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="theme-color" content="#F2F2F4" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#000000" media="(prefers-color-scheme: dark)">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<link rel="icon" type="image/png" href="icon-192.png">
+<style>
+:root {
+  --fondo: #F2F2F4; --hoja: #FFFFFF; --seg-on: #FFFFFF;
+  --tinta: #1C1C1E; --tinta-2: #6E6E73; --tinta-3: #8E8E93;
+  --linea: rgba(60, 60, 67, .16); --relleno: rgba(118, 118, 128, .12); --switch-off: rgba(120, 120, 128, .22);
+  --acento: #1F3550; --sobre-acento: #FFFFFF;
+  --rojo: #B0453A; --verde: #3F7556; --ambar: #9C7724;
+  --vidrio: rgba(255, 255, 255, .58); --vidrio-borde: rgba(255, 255, 255, .8);
+  --vidrio-luz: rgba(255, 255, 255, .95);
+  --vidrio-sombra: 0 10px 30px rgba(0, 0, 0, .10), 0 1px 3px rgba(0, 0, 0, .06);
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --fondo: #000000; --hoja: #1C1C1E; --seg-on: #5A5A5E;
+    --tinta: #F2F2F7; --tinta-2: #A1A1A6; --tinta-3: #7C7C80;
+    --linea: rgba(84, 84, 88, .55); --relleno: rgba(118, 118, 128, .24); --switch-off: rgba(120, 120, 128, .36);
+    --acento: #A7BDDB; --sobre-acento: #0A1320;
+    --rojo: #F08A80; --verde: #8CC3A1; --ambar: #E2BE63;
+    --vidrio: rgba(40, 40, 44, .55); --vidrio-borde: rgba(255, 255, 255, .14);
+    --vidrio-luz: rgba(255, 255, 255, .20);
+    --vidrio-sombra: 0 10px 30px rgba(0, 0, 0, .55);
+    color-scheme: dark;
+  }
+}
+* { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+html, body { margin: 0; background: var(--fondo); color: var(--tinta);
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', system-ui, sans-serif;
+  font-size: 17px; line-height: 1.35; -webkit-text-size-adjust: 100%; }
+body { padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 112px); }
+.num { font-variant-numeric: tabular-nums; }
+[hidden] { display: none !important; }
+
+/* Vidrio líquido: solo en la capa de navegación y controles flotantes */
+.glass { background: var(--vidrio);
+  -webkit-backdrop-filter: blur(24px) saturate(190%); backdrop-filter: blur(24px) saturate(190%);
+  border: 1px solid var(--vidrio-borde);
+  box-shadow: inset 0 1px 0 var(--vidrio-luz), var(--vidrio-sombra); }
+@supports not ((backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))) {
+  .glass { background: var(--hoja); }
+}
+
+/* Barra superior (pantallas internas) */
+.nav { position: sticky; top: 0; z-index: 9; padding: calc(env(safe-area-inset-top, 0px) + 6px) 12px 6px;
+  border-width: 0 0 1px; border-radius: 0; box-shadow: none; }
+.nav-in { max-width: 520px; margin: 0 auto; display: flex; align-items: center; min-height: 40px; }
+.volver { display: inline-flex; align-items: center; gap: 2px; border-radius: 99px; padding: 7px 14px 7px 10px;
+  font: inherit; color: var(--tinta); cursor: pointer; }
+
+.app { max-width: 520px; margin: 0 auto; padding: calc(env(safe-area-inset-top, 0px) + 12px) 16px 0; }
+.nav:not([hidden]) + .app { padding-top: 6px; }
+h1.titulo { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin: 8px 4px 4px; }
+.subtitulo { color: var(--tinta-2); margin: 0 4px 16px; font-size: 15px; }
+.seccion { font-size: 15px; font-weight: 600; color: var(--tinta-2); margin: 22px 16px 8px; }
+
+/* Listas agrupadas */
+.grupo { background: var(--hoja); border-radius: 22px; overflow: hidden; margin-bottom: 18px; }
+.celda { position: relative; display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 12px 16px; min-height: 50px; width: 100%; font: inherit; color: inherit; background: none; border: 0; text-align: left; }
+.celda + .celda::before, .celda + div > .celda:first-child::before, div + .celda::before {
+  content: ''; position: absolute; top: 0; left: 16px; right: 0; border-top: .5px solid var(--linea); }
+.celda .k { color: var(--tinta-2); flex: none; }
+.celda.tocable { cursor: pointer; }
+.chev::after { content: '›'; color: var(--tinta-3); font-size: 22px; margin-left: 6px; line-height: 1; }
+.celda input:not(.switch), .celda select { flex: 1; min-width: 0; border: 0; background: transparent; color: var(--tinta);
+  font: inherit; text-align: right; padding: 0; outline: none; -webkit-appearance: none; appearance: none; }
+.sel { display: flex; align-items: center; gap: 4px; flex: 1; justify-content: flex-end; min-width: 0; color: var(--tinta); }
+.sel::after { content: '⌃⌄'; font-size: 11px; letter-spacing: -2px; color: var(--tinta-3); writing-mode: vertical-rl; }
+.sel select { text-align: right; text-align-last: right; color: var(--tinta); }
+.destacado { flex-direction: column; align-items: flex-start; gap: 2px; padding-top: 16px; }
+.grande { font-size: 40px; font-weight: 700; letter-spacing: -.025em; line-height: 1.05; }
+.peq { font-size: 13px; color: var(--tinta-3); }
+.punto { width: 9px; height: 9px; border-radius: 50%; display: inline-block; margin-right: 10px; flex: none; }
+.falta { color: var(--rojo); } .sobra { color: var(--verde); } .cuadra { color: var(--ambar); }
+.pos { color: var(--verde); }
+.peligro { color: var(--rojo); justify-content: center; cursor: pointer; }
+.vacio { color: var(--tinta-3); font-size: 15px; }
+
+/* Controles */
+.seg { display: flex; background: var(--relleno); border-radius: 99px; padding: 3px; gap: 2px; margin-bottom: 18px; }
+.seg button { flex: 1; border: 0; background: transparent; border-radius: 99px; padding: 8px 10px; font: inherit;
+  font-size: 15px; font-weight: 500; color: var(--tinta); cursor: pointer; white-space: nowrap; }
+.seg button[aria-pressed="true"] { background: var(--seg-on);
+  box-shadow: 0 2px 6px rgba(0, 0, 0, .12), inset 0 1px 0 var(--vidrio-luz); }
+.seg.mini { margin: 0; flex: none; }
+.seg.mini button { padding: 5px 12px; font-size: 14px; }
+input.switch { -webkit-appearance: none; appearance: none; width: 51px; height: 31px; border-radius: 99px; flex: none;
+  background: var(--switch-off); position: relative; margin: 0; cursor: pointer; transition: background .2s; }
+input.switch::after { content: ''; position: absolute; top: 2px; left: 2px; width: 27px; height: 27px; border-radius: 50%;
+  background: #fff; box-shadow: 0 2px 5px rgba(0, 0, 0, .22); transition: transform .2s; }
+input.switch:checked { background: var(--acento); }
+input.switch:checked::after { transform: translateX(20px); }
+.mini-btn { border: 0; background: var(--relleno); color: var(--tinta); border-radius: 99px; padding: 7px 14px;
+  font: inherit; font-size: 15px; font-weight: 500; cursor: pointer; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 8px; }
+.chip { border: 0; background: var(--relleno); color: var(--tinta); border-radius: 99px; padding: 7px 13px; font: inherit; font-size: 15px; }
+.chip.yo { background: var(--acento); color: var(--sobre-acento); }
+.btn { display: block; width: 100%; border: 0; border-radius: 99px; padding: 15px; min-height: 54px; cursor: pointer;
+  font: inherit; font-weight: 600; background: var(--acento); color: var(--sobre-acento);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .28), 0 8px 20px rgba(0, 0, 0, .14); }
+.btn:disabled, .mini-btn:disabled { opacity: .55; }
+.ayuda { font-size: 14px; color: var(--tinta-2); margin: -8px 16px 16px; }
+.ayuda:empty { display: none; }
+.error { font-size: 15px; color: var(--rojo); margin: 0 16px 14px; }
+.error:empty { display: none; }
+input.fecha-pill { flex: none !important; background: var(--relleno) !important; border-radius: 9px !important;
+  padding: 5px 9px !important; text-align: center !important; font-size: 15px !important; }
+:focus-visible { outline: 2px solid var(--acento); outline-offset: 2px; }
+
+/* Barra flotante inferior */
+.tabbar { position: fixed; left: 0; right: 0; bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  width: calc(100% - 28px); max-width: 480px; margin: 0 auto; height: 64px; border-radius: 99px; z-index: 10;
+  display: flex; align-items: center; justify-content: space-around; padding: 0 6px; }
+.tab { border: 0; background: none; display: flex; flex-direction: column; align-items: center; gap: 2px;
+  font: inherit; font-size: 11px; font-weight: 500; color: var(--tinta-2); padding: 6px 12px; border-radius: 99px;
+  min-width: 60px; cursor: pointer; }
+.tab svg { width: 24px; height: 24px; }
+.tab[aria-current="page"] { color: var(--acento); background: var(--relleno); }
+.fab { width: 52px; height: 52px; border-radius: 50%; border: 0; display: flex; align-items: center; justify-content: center;
+  background: var(--acento); color: var(--sobre-acento); cursor: pointer;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, .32), 0 6px 16px rgba(0, 0, 0, .22); }
+.fab svg { width: 26px; height: 26px; }
+
+.toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
+  padding: 12px 18px; border-radius: 99px; font-size: 15px; width: max-content; max-width: 90vw; z-index: 20; color: var(--tinta); }
+.toast.error { color: var(--rojo); }
+.cargando { text-align: center; color: var(--tinta-3); padding: 120px 0; }
+
+/* Líneas del pago dividido */
+.linea { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1.1fr) 28px; gap: 8px; }
+.linea input, .linea select { text-align: left !important; }
+.linea select { background: var(--relleno) !important; border-radius: 9px !important; padding: 6px 8px !important; }
+.quitar { border: 0; background: none; color: var(--tinta-3); font-size: 22px; cursor: pointer; padding: 0; }
+
+@media (prefers-reduced-motion: no-preference) {
+  section { animation: entrar .2s ease-out; }
+  @keyframes entrar { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+}
+</style>
+</head>
+<body>
+<header class="nav glass" id="nav" hidden>
+  <div class="nav-in"><button class="volver glass" type="button" id="volver">‹ <span id="volver-t">Inicio</span></button></div>
+</header>
+
+<main class="app">
+  <div id="cargando" class="cargando">Cargando tus cuentas…</div>
+
+  <section id="v-inicio" hidden>
+    <h1 class="titulo">Inicio</h1>
+    <p class="subtitulo" id="i-periodo"></p>
+
+    <div class="grupo">
+      <div class="celda destacado"><span class="k">Disponible</span><span class="grande num" id="i-disp"></span></div>
+      <div class="celda"><span class="k">En pesos</span><span class="num" id="i-cop"></span></div>
+      <div class="celda"><span class="k">En dólares</span><span class="num" style="text-align:right" id="i-usd"></span></div>
+      <div class="celda"><span class="k">Cupo en tarjetas</span><span class="num" id="i-tarjetas"></span></div>
+      <div class="celda"><span class="k">Saldo real</span><span class="num" style="text-align:right" id="i-real"></span></div>
+      <div class="celda"><span class="k">Diferencia</span><span class="num" style="display:flex;align-items:center" id="i-dif"></span></div>
+    </div>
+
+    <div class="grupo">
+      <div class="celda">
+        <div>Tasa USD <strong class="num" id="i-tasa"></strong><div class="peq" id="i-tasa-fecha"></div></div>
+        <button class="mini-btn" type="button" id="i-tasa-editar">Actualizar</button>
+      </div>
+      <div class="celda" id="i-tasa-form" hidden>
+        <input id="i-tasa-input" type="text" inputmode="decimal" placeholder="Tasa de hoy, por ejemplo 3950" style="text-align:left">
+        <button class="mini-btn" type="button" id="i-tasa-guardar">Guardar</button>
+      </div>
+    </div>
+
+    <div class="seccion">Este periodo</div>
+    <div class="grupo">
+      <div class="celda"><span class="k">Ingresos</span><span class="num pos" id="i-ing"></span></div>
+      <div class="celda"><span class="k">Gastos</span><span class="num" id="i-gas"></span></div>
+      <div id="i-cats"></div>
+    </div>
+
+    <div class="seccion">Últimos registros</div>
+    <div class="grupo" id="i-ultimos"></div>
+    <div class="grupo"><button class="celda peligro" type="button" id="i-deshacer">Deshacer último registro</button></div>
+  </section>
+
+  <section id="v-config" hidden>
+    <h1 class="titulo">Conectar</h1>
+    <p class="subtitulo">Conecta la app con tu Google Sheet. Solo se hace una vez y queda guardado en este iPhone.</p>
+    <div class="grupo">
+      <label class="celda"><span class="k">URL</span><input id="c-url" type="url" placeholder="https://script.google.com/…/exec" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+      <label class="celda"><span class="k">Clave</span><input id="c-clave" type="password" placeholder="Tu clave secreta" autocomplete="off" autocapitalize="off" spellcheck="false"></label>
+    </div>
+    <div class="error" id="c-error" role="alert"></div>
+    <button class="btn" type="button" id="c-guardar">Conectar</button>
+    <button class="btn" type="button" id="c-reintentar" hidden style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Reintentar sin cambiar nada</button>
+  </section>
+
+  <section id="v-mas" hidden>
+    <h1 class="titulo">Más</h1>
+    <div class="grupo" id="mas-lista"></div>
+  </section>
+</main>
+
+<nav class="tabbar glass" id="tabbar" hidden aria-label="Navegación"></nav>
+<div id="toast" class="toast glass" role="status" aria-live="polite" hidden></div>
+
+<script>
+/* ---------- Utilidades ---------- */
+const CFG = 'misgastos.conexion';
+function leerCfg() { try { return JSON.parse(localStorage.getItem(CFG)) || null; } catch (e) { return null; } }
+async function api(fn, ...args) {
+  const c = leerCfg();
+  if (!c) throw new Error('La app no está conectada');
+  let r;
+  try {
+    r = await fetch(c.url, { method: 'POST', body: JSON.stringify({ clave: c.clave, fn, args }) });
+  } catch (e) { throw new Error('Sin conexión. Revisa tu internet.'); }
+  if (!r.ok) throw new Error('Error de conexión (' + r.status + ')');
+  const j = await r.json();
+  if (!j.ok) throw new Error(j.error || 'Error desconocido');
+  return j.data;
+}
+function mensajeError(e) { return String((e && e.message) || e).replace(/^(Exception|Error):\s*/, ''); }
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c])); }
+const fCOP = n => (n < 0 ? '−' : '') + '$' + Math.abs(Math.round(n || 0)).toLocaleString('es-CO');
+const fUSD = n => (n < 0 ? '−' : '') + 'US$' + Math.abs(Number(n || 0)).toLocaleString('es-CO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+const fMon = (n, m) => (m === 'USD' ? fUSD(n) : fCOP(n));
+const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
+function fDia(k) { const [, m, d] = String(k).slice(0, 10).split('-').map(Number); return d + ' ' + MESES[m - 1]; }
+function ahoraLocal() { const d = new Date(); d.setMinutes(d.getMinutes() - d.getTimezoneOffset()); return d.toISOString().slice(0, 16); }
+function hace(iso) {
+  if (!iso) return 'sin fecha';
+  const min = Math.round((Date.now() - new Date(iso).getTime()) / 60000);
+  if (min < 60) return 'hace ' + Math.max(min, 1) + ' min';
+  if (min < 1440) return 'hace ' + Math.round(min / 60) + ' h';
+  return 'hace ' + Math.round(min / 1440) + ' días';
+}
+function parseMonto(s, moneda) {
+  s = String(s || '').trim();
+  if (!s) return NaN;
+  if (moneda !== 'USD') return Number(s.replace(/[^\d]/g, '')) || NaN;
+  s = s.replace(/[^\d.,]/g, '');
+  const dec = Math.max(s.lastIndexOf(','), s.lastIndexOf('.'));
+  if (dec > -1 && s.length - dec - 1 <= 2) return Number(s.slice(0, dec).replace(/[.,]/g, '') + '.' + s.slice(dec + 1));
+  return Number(s.replace(/[.,]/g, '')) || NaN;
+}
+let _toastT;
+function toast(msg, esError) {
+  const t = document.getElementById('toast');
+  t.textContent = msg; t.classList.toggle('error', !!esError); t.hidden = false;
+  clearTimeout(_toastT); _toastT = setTimeout(() => { t.hidden = true; }, esError ? 6000 : 3000);
+}
+function opcionesCuentas(extra) {
+  return (extra || '') + App.cat.cuentas.map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}${c.moneda === 'USD' ? ' (USD)' : ''}</option>`).join('');
+}
+/** Convierte un <select> en control segmentado (el select sigue siendo la fuente del valor). */
+function segmentar(sel) {
+  if (!sel._seg) {
+    const box = document.createElement('div');
+    box.className = 'seg mini';
+    sel.hidden = true;
+    sel.after(box);
+    box.addEventListener('click', e => {
+      const b = e.target.closest('[data-v]');
+      if (!b) return;
+      sel.value = b.dataset.v;
+      sel._seg();
+      sel.dispatchEvent(new Event('input', { bubbles: true }));
+      sel.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    sel._seg = () => {
+      box.innerHTML = Array.from(sel.options).map(o =>
+        `<button type="button" data-v="${esc(o.value)}" aria-pressed="${o.value === sel.value}">${esc(o.text)}</button>`).join('');
+    };
+  }
+  sel._seg();
+}
+const ICONOS = {
+  inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>',
+  mas: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
+  sumar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
+  calendario: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3.5" y="5" width="17" height="15" rx="3"/><path d="M3.5 10h17M8 3v4M16 3v4"/></svg>',
+  billetera: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="6" width="18" height="13" rx="3"/><path d="M16 12.5h2"/><path d="M5 6l10-3 1 3"/></svg>',
+};
+
+/* ---------- App ---------- */
+const App = {
+  cat: null, est: null, pantallas: [], actual: 'inicio', anterior: 'inicio',
+
+  registrar(p) { this.pantallas.push(p); },
+
+  async iniciar() {
+    if (!leerCfg()) return this.mostrarConfig('');
+    try {
+      const r = await api('obtenerInicio');
+      this.cat = r.catalogos; this.est = r.estado;
+      this.pantallas.sort((a, b) => a.orden - b.orden);
+      this.construir();
+      document.getElementById('cargando').hidden = true;
+      document.getElementById('tabbar').hidden = false;
+      this.ir('inicio');
+    } catch (e) {
+      this.mostrarConfig(mensajeError(e));
+    }
+  },
+
+  mostrarConfig(error) {
+    const $ = id => document.getElementById(id);
+    const c = leerCfg() || {};
+    document.querySelectorAll('.app > section').forEach(s => { s.hidden = s.id !== 'v-config'; });
+    $('cargando').hidden = true;
+    $('nav').hidden = true;
+    $('tabbar').hidden = true;
+    $('c-url').value = c.url || '';
+    $('c-clave').value = c.clave || '';
+    $('c-error').textContent = error || '';
+    $('c-reintentar').hidden = !c.url;
+    $('c-reintentar').onclick = () => location.reload();
+    $('c-guardar').onclick = () => {
+      const url = $('c-url').value.trim(), clave = $('c-clave').value.trim();
+      if (!/^https:\/\/script\.google\.com\/.+\/exec$/.test(url)) return ($('c-error').textContent = 'La URL debe empezar por https://script.google.com y terminar en /exec.');
+      if (clave.length < 20) return ($('c-error').textContent = 'Revisa la clave: parece incompleta.');
+      try { localStorage.setItem(CFG, JSON.stringify({ url, clave })); } catch (e) { return ($('c-error').textContent = 'No se pudo guardar en este dispositivo.'); }
+      location.reload();
+    };
+  },
+
+  esRaiz(id) { return id === 'inicio' || id === 'mas' || this.pantallas.some(p => p.id === id && p.tab); },
+
+  construir() {
+    const main = document.querySelector('.app');
+    this.pantallas.forEach(p => {
+      const s = document.createElement('section');
+      s.id = 'v-' + p.id; s.hidden = true;
+      s.innerHTML = '<h1 class="titulo">' + esc(p.titulo) + '</h1>' + p.html;
+      main.appendChild(s);
+      p.el = s;
+      if (p.montar) p.montar(s);
+    });
+
+    // Barra inferior: Inicio, pestañas, botón +, pestañas, Más
+    const tabs = this.pantallas.filter(p => p.tab);
+    const principal = this.pantallas.find(p => p.principal);
+    const mitad = Math.ceil(tabs.length / 2);
+    const tabBtn = (id, t, ic) => `<button class="tab" type="button" data-ir="${id}">${ICONOS[ic] || ICONOS.mas}${esc(t)}</button>`;
+    document.getElementById('tabbar').innerHTML =
+      tabBtn('inicio', 'Inicio', 'inicio') +
+      tabs.slice(0, mitad).map(p => tabBtn(p.id, p.tabTitulo || p.titulo, p.icono)).join('') +
+      (principal ? `<button class="fab" type="button" data-ir="${principal.id}" aria-label="${esc(principal.titulo)}">${ICONOS.sumar}</button>` : '') +
+      tabs.slice(mitad).map(p => tabBtn(p.id, p.tabTitulo || p.titulo, p.icono)).join('') +
+      tabBtn('mas', 'Más', 'mas');
+
+    // Lista de "Más"
+    const otras = this.pantallas.filter(p => !p.tab && !p.principal);
+    document.getElementById('mas-lista').innerHTML = otras.length
+      ? otras.map(p => `<button class="celda tocable" type="button" data-ir="${p.id}"><span>${esc(p.titulo)}<div class="peq">${esc(p.descripcion || '')}</div></span><span class="chev"></span></button>`).join('')
+      : '<div class="celda vacio">Las demás opciones llegan en el siguiente paso.</div>';
+    document.getElementById('v-mas').insertAdjacentHTML('beforeend',
+      '<div class="seccion">App</div><div class="grupo"><button class="celda tocable" type="button" id="mas-conexion"><span>Conexión con tu Google Sheet<div class="peq">Cambiar URL o clave</div></span><span class="chev"></span></button></div>');
+    document.getElementById('mas-conexion').onclick = () => this.mostrarConfig('');
+
+    document.addEventListener('click', e => {
+      const b = e.target.closest('[data-ir]');
+      if (b) this.ir(b.dataset.ir);
+    });
+    document.getElementById('volver').onclick = () => this.ir(this.anterior);
+
+    // Tasa
+    const form = document.getElementById('i-tasa-form');
+    document.getElementById('i-tasa-editar').onclick = () => {
+      form.hidden = !form.hidden;
+      if (!form.hidden) document.getElementById('i-tasa-input').focus();
+    };
+    document.getElementById('i-tasa-guardar').onclick = async ev => {
+      const v = parseMonto(document.getElementById('i-tasa-input').value, 'USD');
+      if (!(v > 0)) return toast('Escribe la tasa, por ejemplo 3950', true);
+      try {
+        await this.guardar('actualizarTasa', v, ev.currentTarget);
+        form.hidden = true; document.getElementById('i-tasa-input').value = '';
+        this.pintarInicio();
+      } catch (e) {}
+    };
+
+    // Deshacer (dos toques)
+    const des = document.getElementById('i-deshacer');
+    let armado = null;
+    des.onclick = async () => {
+      if (!armado) {
+        const u = this.est.ultimos[0];
+        if (!u) return toast('No hay registros para deshacer');
+        des.textContent = 'Toca otra vez para deshacer: ' + u.motivo;
+        armado = setTimeout(() => { armado = null; des.textContent = 'Deshacer último registro'; }, 4000);
+        return;
+      }
+      clearTimeout(armado); armado = null; des.textContent = 'Deshacer último registro';
+      try { await this.guardar('deshacerUltimo', null, des); this.pintarInicio(); } catch (e) {}
+    };
+  },
+
+  ir(id) {
+    if (this.esRaiz(id)) this.anterior = id;
+    else if (this.esRaiz(this.actual)) this.anterior = this.actual;
+    this.actual = id;
+    document.querySelectorAll('.app > section').forEach(s => { s.hidden = s.id !== 'v-' + id; });
+    const raiz = this.esRaiz(id);
+    document.getElementById('nav').hidden = raiz;
+    document.getElementById('volver-t').textContent = this.anterior === 'mas' ? 'Más' :
+      (this.pantallas.find(p => p.id === this.anterior) || { titulo: 'Inicio' }).titulo;
+    document.querySelectorAll('.tab').forEach(t => {
+      if (t.dataset.ir === (raiz ? id : this.anterior)) t.setAttribute('aria-current', 'page');
+      else t.removeAttribute('aria-current');
+    });
+    window.scrollTo(0, 0);
+    if (id === 'inicio') return this.pintarInicio();
+    const p = this.pantallas.find(x => x.id === id);
+    if (p && p.alAbrir) p.alAbrir(p.el);
+  },
+
+  async refrescar() {
+    this.est = await api('obtenerEstado'); this.cat.tasa = this.est.tasa;
+    api('actualizarResumen').catch(() => {});
+  },
+
+  async guardar(fn, datos, boton) {
+    if (boton) boton.disabled = true;
+    try {
+      const r = await api(fn, datos);
+      toast(r.mensaje || 'Guardado');
+      await this.refrescar();
+      return r;
+    } catch (e) {
+      toast(mensajeError(e), true);
+      throw e;
+    } finally {
+      if (boton) boton.disabled = false;
+    }
+  },
+
+  pintarInicio() {
+    const e = this.est, d = e.disponible;
+    const $ = id => document.getElementById(id);
+    $('i-periodo').textContent = 'Periodo del ' + fDia(e.periodo.inicio) + ' al ' + fDia(e.periodo.fin);
+    $('i-disp').textContent = fCOP(d.totalEsperado);
+    $('i-cop').textContent = fCOP(d.copEsperado);
+    $('i-usd').innerHTML = fUSD(d.usdEsperado) + '<div class="peq">' + fCOP(d.usdEnCop) + ' en pesos</div>';
+    $('i-tarjetas').textContent = fCOP(d.tarjetasEsperado);
+    $('i-tasa').textContent = e.tasa ? fCOP(e.tasa) : 'sin configurar';
+    $('i-tasa-fecha').textContent = 'Actualizada ' + hace(e.tasaActualizada);
+
+    const hayReal = e.cuentas.some(c => c.real !== null);
+    if (!hayReal) {
+      $('i-real').innerHTML = '<span class="peq">Sin registrar</span>';
+      $('i-dif').innerHTML = '<span class="peq">Actualiza tus saldos para comparar</span>';
+    } else {
+      const dif = Math.round(d.totalReal - d.totalEsperado);
+      const [clase, color, texto] = Math.abs(dif) < 1 ? ['cuadra', 'var(--ambar)', fCOP(0)]
+        : dif < 0 ? ['falta', 'var(--rojo)', fCOP(dif)]
+        : ['sobra', 'var(--verde)', '+' + fCOP(dif)];
+      const fecha = e.cuentas.map(c => c.fechaReal).filter(Boolean).sort().pop();
+      $('i-real').innerHTML = fCOP(d.totalReal) + (fecha ? '<div class="peq">Actualizado el ' + fDia(fecha) + '</div>' : '');
+      $('i-dif').innerHTML = `<span class="punto" style="background:${color}"></span><span class="${clase}">${texto}</span>`;
+    }
+
+    $('i-ing').textContent = fCOP(e.resumen.ingresos);
+    $('i-gas').textContent = fCOP(e.resumen.totalGastos);
+    const pc = e.resumen.porCategoria;
+    $('i-cats').innerHTML = Object.keys(pc).sort((a, b) => pc[b] - pc[a]).map(c =>
+      `<div class="celda"><span class="k" style="padding-left:12px">${esc(c)}</span><span class="num">${fCOP(pc[c])}</span></div>`).join('');
+
+    $('i-ultimos').innerHTML = e.ultimos.length ? e.ultimos.map(u =>
+      `<div class="celda"><span>${esc(u.motivo)}<div class="peq">${fDia(u.fecha)}${u.cuenta ? ', ' + esc(u.cuenta) : ''}</div></span>
+       <span class="num ${u.cop > 0 ? 'pos' : ''}">${u.cop ? fCOP(u.cop) : ''}</span></div>`).join('')
+      : '<div class="celda vacio">Aún no hay registros. Toca + para registrar un gasto.</div>';
+  },
+};
+</script>
+
+<script>
+App.registrar({
+  id: 'gasto', orden: 1, principal: true,
+  titulo: 'Registrar gasto', boton: 'Registrar gasto', descripcion: 'Gastos varios, comidas o bancarios',
+
+  html: `
+    <div class="seg" id="g-cats" role="group" aria-label="Categoría"></div>
+
+    <div class="grupo">
+      <div class="celda" id="g-banc" hidden>
+        <span class="k">Tipo de cobro</span><span class="sel"><select id="g-tipo"></select></span>
+      </div>
+      <label class="celda" for="g-motivo">
+        <span class="k" id="g-motivo-l">Motivo</span>
+        <input id="g-motivo" type="text" placeholder="Taxi a casa" autocomplete="off">
+      </label>
+    </div>
+
+    <div class="grupo" id="g-pago-yo">
+      <div class="celda">
+        <span class="k" id="g-metodo-l">Método de pago</span><span class="sel"><select id="g-metodo"></select></span>
+      </div>
+      <div id="g-simple">
+        <label class="celda" for="g-valor">
+          <span class="k">Valor</span>
+          <input id="g-valor" type="text" inputmode="decimal" placeholder="0" autocomplete="off">
+        </label>
+        <div class="celda"><span class="k">Moneda</span><select id="g-moneda"><option>COP</option><option>USD</option></select></div>
+      </div>
+      <div id="g-varios" hidden>
+        <div id="g-lineas"></div>
+        <button class="celda tocable" type="button" id="g-add-linea" style="color:var(--acento)">+ Agregar método</button>
+      </div>
+    </div>
+
+    <div class="grupo">
+      <label class="celda" id="g-comp-l"><span>Gasto compartido</span><input type="checkbox" class="switch" id="g-comp"></label>
+      <div id="g-comp-box" hidden>
+        <div class="celda"><div class="chips" id="g-parts"></div></div>
+        <div class="celda">
+          <input id="g-persona" list="g-personas" placeholder="Agregar persona" autocomplete="off" style="text-align:left">
+          <button class="mini-btn" type="button" id="g-persona-add">Agregar</button>
+        </div>
+        <div class="celda"><span class="k">¿Quién pagó?</span><span class="sel"><select id="g-pagador"></select></span></div>
+        <label class="celda"><span>Ajustar cuánto pone cada uno</span><input type="checkbox" class="switch" id="g-ajustar"></label>
+        <div id="g-partes"></div>
+      </div>
+    </div>
+
+    <div class="grupo" id="g-pago-otro" hidden>
+      <label class="celda" for="g-total">
+        <span class="k">Total del gasto</span>
+        <input id="g-total" type="text" inputmode="decimal" placeholder="0" autocomplete="off">
+      </label>
+      <div class="celda"><span class="k">Moneda</span><select id="g-total-moneda"><option>COP</option><option>USD</option></select></div>
+    </div>
+
+    <datalist id="g-personas"></datalist>
+    <div class="ayuda" id="g-resumen"></div>
+
+    <div class="grupo">
+      <div class="celda">
+        <span class="k">Fecha</span>
+        <span style="display:flex;gap:8px;align-items:center;min-width:0">
+          <input id="g-fecha" type="datetime-local" class="fecha-pill">
+          <button class="mini-btn" type="button" id="g-hoy">Hoy</button>
+        </span>
+      </div>
+    </div>
+
+    <div class="error" id="g-error" role="alert"></div>
+    <button class="btn" type="button" id="g-guardar">Guardar gasto</button>
+  `,
+
+  S: null,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    const repintar = () => { this.leerLineas(); this.pintar(); };
+
+    q('#g-cats').addEventListener('click', e => {
+      const b = e.target.closest('[data-cat]');
+      if (b) { this.S.cat = b.dataset.cat; repintar(); }
+    });
+    q('#g-comp').onchange = () => { this.S.comp = q('#g-comp').checked; repintar(); };
+    q('#g-ajustar').onchange = () => { this.S.ajustar = q('#g-ajustar').checked; repintar(); };
+    q('#g-pagador').onchange = () => { this.S.pagador = q('#g-pagador').value; repintar(); };
+    q('#g-metodo').onchange = () => {
+      this.leerLineas();
+      this.S.metodo = q('#g-metodo').value;
+      if (this.S.metodo === 'Varios' && !this.S.lineas.length) this.S.lineas = [this.nuevaLinea(), this.nuevaLinea()];
+      this.pintar();
+    };
+    q('#g-persona-add').onclick = () => this.agregarPersona();
+    q('#g-persona').addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); this.agregarPersona(); } });
+    q('#g-parts').addEventListener('click', e => {
+      const b = e.target.closest('[data-quitar]');
+      if (!b) return;
+      this.S.parts = this.S.parts.filter(n => n !== b.dataset.quitar);
+      if (!this.S.parts.includes(this.S.pagador)) this.S.pagador = App.cat.usuario;
+      repintar();
+    });
+    q('#g-add-linea').onclick = () => { this.leerLineas(); this.S.lineas.push(this.nuevaLinea()); this.pintar(); };
+    q('#g-lineas').addEventListener('click', e => {
+      const b = e.target.closest('[data-quitar-linea]');
+      if (!b) return;
+      this.leerLineas();
+      this.S.lineas.splice(Number(b.dataset.quitarLinea), 1);
+      this.pintar();
+    });
+    ['#g-valor', '#g-moneda', '#g-total', '#g-total-moneda', '#g-lineas', '#g-partes']
+      .forEach(s => q(s).addEventListener('input', () => { this.leerLineas(); this.resumen(); }));
+    q('#g-hoy').onclick = () => { q('#g-fecha').value = ahoraLocal(); };
+    q('#g-guardar').onclick = ev => this.guardar(ev.currentTarget);
+    segmentar(q('#g-moneda'));
+    segmentar(q('#g-total-moneda'));
+  },
+
+  alAbrir() { this.reiniciar(); },
+
+  reiniciar() {
+    const q = this.q, cat = App.cat;
+    this.S = {
+      cat: cat.categorias[0] || 'Gastos varios', comp: false, ajustar: false,
+      parts: [cat.usuario], pagador: cat.usuario, metodo: '', lineas: [],
+    };
+    q('#g-motivo').value = ''; q('#g-valor').value = ''; q('#g-total').value = '';
+    q('#g-moneda').value = 'COP'; q('#g-total-moneda').value = 'COP';
+    segmentar(q('#g-moneda')); segmentar(q('#g-total-moneda'));
+    q('#g-comp').checked = false; q('#g-ajustar').checked = false;
+    q('#g-fecha').value = ahoraLocal();
+    q('#g-error').textContent = '';
+    q('#g-tipo').innerHTML = cat.tiposBancarios.map(t => `<option>${esc(t)}</option>`).join('');
+    q('#g-personas').innerHTML = cat.personas.map(p => `<option value="${esc(p)}">`).join('');
+    this.pintar();
+  },
+
+  nuevaLinea() { return { monto: '', moneda: 'COP', cuenta: '' }; },
+
+  agregarPersona() {
+    const inp = this.q('#g-persona');
+    const n = inp.value.trim();
+    if (!n) return;
+    if (!this.S.parts.some(p => p.toLowerCase() === n.toLowerCase())) this.S.parts.push(n);
+    inp.value = '';
+    this.leerLineas();
+    this.pintar();
+  },
+
+  leerLineas() {
+    this.q('#g-lineas').querySelectorAll('.linea').forEach((row, i) => {
+      const l = this.S.lineas[i];
+      if (!l) return;
+      l.monto = row.querySelector('[data-k="monto"]').value;
+      l.moneda = row.querySelector('[data-k="moneda"]').value;
+      l.cuenta = row.querySelector('[data-k="cuenta"]').value;
+    });
+  },
+
+  pintar() {
+    const q = this.q, S = this.S, cat = App.cat;
+    const banc = S.cat === 'Gastos bancarios';
+    const pagaOtro = S.comp && S.pagador !== cat.usuario;
+
+    q('#g-cats').innerHTML = cat.categorias.map(c =>
+      `<button type="button" data-cat="${esc(c)}" aria-pressed="${c === S.cat}">${esc(c === 'Gastos bancarios' ? 'Bancarios' : c)}</button>`).join('');
+    q('#g-banc').hidden = !banc;
+    q('#g-motivo-l').textContent = banc ? 'Motivo (opcional)' : 'Motivo';
+    q('#g-comp-l').hidden = banc;
+    if (banc) S.comp = false;
+    q('#g-comp').checked = S.comp;
+    q('#g-comp-box').hidden = !S.comp;
+
+    // Participantes
+    q('#g-parts').innerHTML = S.parts.map(n => n === cat.usuario
+      ? `<span class="chip yo">${esc(n)} (yo)</span>`
+      : `<button class="chip" type="button" data-quitar="${esc(n)}" aria-label="Quitar ${esc(n)}">${esc(n)} ×</button>`).join('');
+    q('#g-pagador').innerHTML = S.parts.map(n =>
+      `<option value="${esc(n)}"${n === S.pagador ? ' selected' : ''}>${esc(n === cat.usuario ? n + ' (yo)' : n)}</option>`).join('');
+
+    // Pago
+    q('#g-pago-yo').hidden = pagaOtro;
+    q('#g-pago-otro').hidden = !pagaOtro;
+    q('#g-metodo-l').textContent = banc ? 'Entidad que te cobró' : 'Método de pago';
+    if (banc && S.metodo === 'Varios') S.metodo = '';
+    q('#g-metodo').innerHTML = opcionesCuentas('<option value="">Elige…</option>') + (banc ? '' : '<option value="Varios">Varios</option>');
+    q('#g-metodo').value = S.metodo;
+    const varios = S.metodo === 'Varios';
+    q('#g-simple').hidden = varios;
+    q('#g-varios').hidden = !varios;
+    q('#g-lineas').innerHTML = S.lineas.map((l, i) => `
+      <div class="celda linea">
+        <input data-k="monto" type="text" inputmode="decimal" placeholder="Valor" value="${esc(l.monto)}" aria-label="Valor parte ${i + 1}">
+        <select data-k="moneda" aria-label="Moneda parte ${i + 1}"><option${l.moneda === 'COP' ? ' selected' : ''}>COP</option><option${l.moneda === 'USD' ? ' selected' : ''}>USD</option></select>
+        <select data-k="cuenta" aria-label="Método parte ${i + 1}">${opcionesCuentas('<option value="">Método…</option>')}</select>
+        <button class="quitar" type="button" data-quitar-linea="${i}" aria-label="Quitar parte ${i + 1}">×</button>
+      </div>`).join('');
+    q('#g-lineas').querySelectorAll('[data-k="cuenta"]').forEach((s, i) => { s.value = S.lineas[i].cuenta; });
+
+    this.resumen();
+  },
+
+  /** Total en COP de lo que pagaste tú (o del total, si pagó otro). */
+  totalCop() {
+    const q = this.q, S = this.S, tasa = App.cat.tasa || 0;
+    const aCop = (m, mon) => (mon === 'USD' ? m * tasa : m);
+    if (S.comp && S.pagador !== App.cat.usuario) {
+      const mon = q('#g-total-moneda').value;
+      return aCop(parseMonto(q('#g-total').value, mon), mon);
+    }
+    if (S.metodo === 'Varios') {
+      return S.lineas.reduce((s, l) => s + (aCop(parseMonto(l.monto, l.moneda), l.moneda) || 0), 0);
+    }
+    const mon = q('#g-moneda').value;
+    return aCop(parseMonto(q('#g-valor').value, mon), mon);
+  },
+
+  resumen() {
+    const q = this.q, S = this.S, tasa = App.cat.tasa;
+    const total = Math.round(this.totalCop() || 0);
+    const partes = [];
+    if (total) {
+      const usaUsd = (S.metodo === 'Varios' ? S.lineas.some(l => l.moneda === 'USD') : q('#g-moneda').value === 'USD') ||
+        (S.comp && S.pagador !== App.cat.usuario && q('#g-total-moneda').value === 'USD');
+      partes.push('Total: ' + fCOP(total) + (usaUsd ? ' (tasa ' + fCOP(tasa) + ')' : ''));
+    }
+    // Partes del compartido
+    const box = q('#g-partes');
+    if (S.comp && S.parts.length > 1) {
+      if (S.ajustar) {
+        const prev = {};
+        box.querySelectorAll('input[data-p]').forEach(i => { prev[i.dataset.p] = i.value; });
+        const iguales = total ? Math.round(total / S.parts.length) : '';
+        const nuevo = S.parts.map(n => `
+          <label class="celda"><span class="k">${esc(n === App.cat.usuario ? n + ' (yo)' : n)}</span>
+            <input data-p="${esc(n)}" type="text" inputmode="decimal" placeholder="${iguales}" value="${esc(prev[n] || '')}"></label>`).join('');
+        if (box.dataset.firma !== S.parts.join('|') + '#a') { box.innerHTML = nuevo; box.dataset.firma = S.parts.join('|') + '#a'; }
+        const suma = Array.from(box.querySelectorAll('input[data-p]')).reduce((s, i) => s + (parseMonto(i.value, 'COP') || 0), 0);
+        if (total) partes.push('Partes: ' + fCOP(suma) + ' de ' + fCOP(total));
+      } else {
+        box.innerHTML = ''; box.dataset.firma = '';
+        if (total) partes.push('Cada uno: ' + fCOP(total / S.parts.length));
+      }
+    } else { box.innerHTML = ''; box.dataset.firma = ''; }
+    q('#g-resumen').textContent = partes.join('. ');
+  },
+
+  async guardar(boton) {
+    const q = this.q, S = this.S, cat = App.cat;
+    const err = q('#g-error');
+    err.textContent = '';
+    this.leerLineas();
+    const fallo = m => { err.textContent = m; };
+
+    const banc = S.cat === 'Gastos bancarios';
+    const d = {
+      fecha: q('#g-fecha').value,
+      categoria: S.cat,
+      subcategoria: banc ? q('#g-tipo').value : '',
+      motivo: q('#g-motivo').value.trim(),
+    };
+    if (!d.motivo && !banc) return fallo('Escribe el motivo del gasto.');
+
+    let participantes = null;
+    if (S.comp) {
+      if (S.parts.length < 2) return fallo('Agrega al menos otra persona al gasto compartido.');
+      participantes = S.parts.map(n => {
+        const o = { nombre: n };
+        if (S.ajustar) {
+          const inp = q('#g-partes').querySelector(`input[data-p="${CSS.escape(n)}"]`);
+          o.parte = parseMonto(inp && inp.value, 'COP');
+        }
+        return o;
+      });
+      if (S.ajustar && participantes.some(p => !(p.parte > 0))) return fallo('Escribe cuánto pone cada persona.');
+    }
+
+    if (S.comp && S.pagador !== cat.usuario) {
+      const mon = q('#g-total-moneda').value;
+      const m = parseMonto(q('#g-total').value, mon);
+      if (!(m > 0)) return fallo('Escribe el total del gasto.');
+      d.compartido = { participantes, pagador: S.pagador, total: { monto: m, moneda: mon } };
+    } else {
+      if (!S.metodo) return fallo(banc ? 'Elige la entidad que te cobró.' : 'Elige el método de pago.');
+      if (S.metodo === 'Varios') {
+        if (S.lineas.length < 2) return fallo('Con “Varios” agrega al menos dos métodos.');
+        for (const l of S.lineas) {
+          if (!(parseMonto(l.monto, l.moneda) > 0)) return fallo('Escribe el valor de cada parte.');
+          if (!l.cuenta) return fallo('Elige el método de cada parte.');
+        }
+        d.lineas = S.lineas.map(l => ({ monto: parseMonto(l.monto, l.moneda), moneda: l.moneda, cuenta: l.cuenta }));
+      } else {
+        const mon = q('#g-moneda').value;
+        const m = parseMonto(q('#g-valor').value, mon);
+        if (!(m > 0)) return fallo('Escribe el valor del gasto.');
+        d.lineas = [{ monto: m, moneda: mon, cuenta: S.metodo }];
+      }
+      if (S.comp) d.compartido = { participantes, pagador: cat.usuario };
+    }
+
+    try {
+      await App.guardar('registrarGasto', d, boton);
+      if (S.comp) S.parts.forEach(n => { if (n !== cat.usuario && !cat.personas.includes(n)) cat.personas.push(n); });
+      App.ir('inicio');
+    } catch (e) {
+      fallo(mensajeError(e));
+    }
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'fijos', orden: 2, tab: true, icono: 'calendario',
+  titulo: 'Gastos fijos', tabTitulo: 'Fijos', descripcion: 'Arriendo, servicios y más',
+
+  html: `
+    <div class="grupo">
+      <div class="celda"><span class="k">Pagado</span><span class="num sobra" id="f-pagado"></span></div>
+      <div class="celda"><span class="k">Pendiente</span><span class="num" id="f-pend"></span></div>
+    </div>
+    <div class="grupo" id="f-lista"></div>
+
+    <div id="f-form" hidden>
+      <div class="seccion" id="f-titulo"></div>
+      <div class="grupo" id="f-campos">
+        <label class="celda"><span class="k">Valor</span><input id="f-valor" type="text" inputmode="decimal" autocomplete="off"></label>
+        <div class="celda"><span class="k">Método de pago</span><span class="sel"><select id="f-metodo"></select></span></div>
+        <div class="celda"><span class="k">Fecha</span>
+          <span style="display:flex;gap:8px;align-items:center"><input id="f-fecha" type="datetime-local" class="fecha-pill"><button class="mini-btn" type="button" id="f-hoy">Hoy</button></span></div>
+      </div>
+      <div class="error" id="f-error" role="alert"></div>
+      <button class="btn" type="button" id="f-guardar"></button>
+      <button class="btn" type="button" id="f-cancelar" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Cancelar</button>
+    </div>
+  `,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    q('#f-lista').addEventListener('click', e => { const b = e.target.closest('[data-f]'); if (b) this.abrir(b.dataset.f); });
+    q('#f-hoy').onclick = () => { q('#f-fecha').value = ahoraLocal(); };
+    q('#f-cancelar').onclick = () => { this.sel = null; this.pintar(); window.scrollTo(0, 0); };
+    q('#f-guardar').onclick = ev => this.guardar(ev.currentTarget);
+  },
+
+  alAbrir() { this.sel = null; this.pintar(); },
+
+  pintar() {
+    const q = this.q, fijos = App.est.fijos;
+    const total = fijos.reduce((s, f) => s + (f.valor || 0), 0);
+    const pagado = fijos.filter(f => f.pagado).reduce((s, f) => s + (f.valor || 0), 0);
+    q('#f-pagado').textContent = fCOP(pagado);
+    q('#f-pend').textContent = fCOP(total - pagado);
+    q('#f-lista').innerHTML = fijos.map(f => `
+      <button class="celda tocable" type="button" data-f="${esc(f.nombre)}">
+        <span>${esc(f.nombre)}<div class="peq num">${fCOP(f.valor)}</div></span>
+        <span style="text-align:right">${f.pagado
+          ? '<span class="sobra">Pagado</span><div class="peq">' + esc(f.cuenta) + '</div>'
+          : '<span class="cuadra">Pendiente</span>'}</span>
+      </button>`).join('') || '<div class="celda vacio">No hay gastos fijos activos.</div>';
+    q('#f-form').hidden = !this.sel;
+  },
+
+  abrir(nombre) {
+    const q = this.q;
+    const f = App.est.fijos.find(x => x.nombre === nombre);
+    this.sel = f;
+    this.pintar();
+    q('#f-titulo').textContent = f.nombre;
+    q('#f-error').textContent = '';
+    q('#f-campos').hidden = f.pagado;
+    q('#f-guardar').textContent = f.pagado ? 'Marcar como no pagado' : 'Marcar como pagado';
+    if (!f.pagado) {
+      q('#f-valor').value = f.valor ? Math.round(f.valor).toLocaleString('es-CO') : '';
+      q('#f-metodo').innerHTML = opcionesCuentas('<option value="">Elige…</option>');
+      q('#f-fecha').value = ahoraLocal();
+    }
+    q('#f-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  async guardar(btn) {
+    const q = this.q, f = this.sel;
+    const err = m => { q('#f-error').textContent = m; };
+    err('');
+    try {
+      if (f.pagado) {
+        await App.guardar('desmarcarPagoFijo', f.nombre, btn);
+      } else {
+        const v = parseMonto(q('#f-valor').value, 'COP');
+        if (!(v > 0)) return err('Escribe el valor.');
+        if (!q('#f-metodo').value) return err('Elige el método de pago.');
+        await App.guardar('registrarPagoFijo', { nombre: f.nombre, valor: v, cuenta: q('#f-metodo').value, fecha: q('#f-fecha').value }, btn);
+      }
+      this.sel = null; this.pintar(); window.scrollTo(0, 0);
+    } catch (e) { err(mensajeError(e)); }
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'variables', orden: 3,
+  titulo: 'Deudas y tarjetas', descripcion: 'Valor del mes y pagos',
+
+  html: `
+    <div class="grupo">
+      <div class="celda"><span class="k">Pagado este periodo</span><span class="num sobra" id="v-pagado"></span></div>
+      <div class="celda"><span class="k">Pendiente</span><span class="num" id="v-pend"></span></div>
+    </div>
+    <div class="grupo" id="v-lista"></div>
+
+    <div id="v-form" hidden>
+      <div class="seccion" id="v-titulo"></div>
+      <div class="grupo">
+        <label class="celda"><span class="k">Valor del mes</span><input id="v-valormes" type="text" inputmode="decimal" placeholder="Lo que llegó en el extracto" autocomplete="off"></label>
+        <div class="celda" style="justify-content:flex-end"><button class="mini-btn" type="button" id="v-guardar-valor">Guardar valor</button></div>
+      </div>
+
+      <div class="seccion">Registrar pago</div>
+      <div class="grupo">
+        <label class="celda"><span class="k">Valor pagado</span><input id="v-monto" type="text" inputmode="decimal" placeholder="0" autocomplete="off"></label>
+        <div class="celda"><span class="k">Moneda</span><select id="v-moneda"><option>COP</option><option>USD</option></select></div>
+        <div class="celda"><span class="k">Pagado desde</span><span class="sel"><select id="v-metodo"></select></span></div>
+        <div id="v-tarjeta" hidden>
+          <label class="celda"><span class="k">Cupo liberado</span><input id="v-liberado" type="text" inputmode="decimal" autocomplete="off"></label>
+          <div class="celda"><span class="k">Intereses</span><span class="num" id="v-intereses">$0</span></div>
+        </div>
+        <div class="celda"><span class="k">Fecha</span>
+          <span style="display:flex;gap:8px;align-items:center"><input id="v-fecha" type="datetime-local" class="fecha-pill"><button class="mini-btn" type="button" id="v-hoy">Hoy</button></span></div>
+      </div>
+      <p class="ayuda" id="v-ayuda"></p>
+      <div class="error" id="v-error" role="alert"></div>
+      <button class="btn" type="button" id="v-pagar">Registrar pago</button>
+      <button class="btn" type="button" id="v-cancelar" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Cancelar</button>
+    </div>
+  `,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    segmentar(q('#v-moneda'));
+    q('#v-lista').addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) this.abrir(b.dataset.v); });
+    q('#v-hoy').onclick = () => { q('#v-fecha').value = ahoraLocal(); };
+    q('#v-cancelar').onclick = () => { this.sel = null; this.pintar(); window.scrollTo(0, 0); };
+    q('#v-guardar-valor').onclick = ev => this.guardarValor(ev.currentTarget);
+    q('#v-pagar').onclick = ev => this.pagar(ev.currentTarget);
+    ['#v-monto', '#v-moneda'].forEach(s => q(s).addEventListener('input', () => this.proponer()));
+    q('#v-liberado').addEventListener('input', () => { this.liberadoEditado = true; this.intereses(); });
+  },
+
+  alAbrir() { this.sel = null; this.pintar(); },
+
+  pintar() {
+    const q = this.q, vs = App.est.variables;
+    q('#v-pagado').textContent = fCOP(vs.reduce((s, v) => s + (v.pagado || 0), 0));
+    q('#v-pend').textContent = fCOP(vs.reduce((s, v) => s + (v.pendiente || 0), 0));
+    q('#v-lista').innerHTML = vs.map(v => {
+      let der;
+      if (v.valorMes !== null && v.pendiente > 0) der = '<span class="cuadra num">' + fCOP(v.pendiente) + '</span><div class="peq">pendiente</div>';
+      else if (v.pagado > 0) der = '<span class="sobra num">' + fCOP(v.pagado) + '</span><div class="peq">pagado</div>';
+      else der = '<span class="peq">Sin valor del mes</span>';
+      return `<button class="celda tocable" type="button" data-v="${esc(v.nombre)}">
+        <span>${esc(v.nombre)}<div class="peq">${esc(v.tarjeta ? 'Tarjeta ' + v.tarjeta : v.tipo || '')}</div></span>
+        <span style="text-align:right">${der}</span></button>`;
+    }).join('') || '<div class="celda vacio">No hay deudas ni tarjetas activas.</div>';
+    q('#v-form').hidden = !this.sel;
+  },
+
+  abrir(nombre) {
+    const q = this.q;
+    const v = App.est.variables.find(x => x.nombre === nombre);
+    this.sel = v; this.liberadoEditado = false;
+    this.pintar();
+    q('#v-titulo').textContent = v.nombre;
+    q('#v-error').textContent = '';
+    q('#v-valormes').value = v.valorMes !== null ? Math.round(v.valorMes).toLocaleString('es-CO') : '';
+    q('#v-monto').value = v.pendiente > 0 ? Math.round(v.pendiente).toLocaleString('es-CO') : '';
+    q('#v-moneda').value = 'COP'; segmentar(q('#v-moneda'));
+    q('#v-metodo').innerHTML = '<option value="">Elige…</option>' + App.cat.cuentas
+      .filter(c => c.nombre !== v.tarjeta)
+      .map(c => `<option value="${esc(c.nombre)}">${esc(c.nombre)}${c.moneda === 'USD' ? ' (USD)' : ''}</option>`).join('');
+    q('#v-fecha').value = ahoraLocal();
+    q('#v-tarjeta').hidden = !v.tarjeta;
+    q('#v-liberado').value = '';
+    q('#v-ayuda').textContent = '';
+    this.proponer();
+    q('#v-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  montoCop() {
+    const q = this.q, mon = q('#v-moneda').value;
+    const m = parseMonto(q('#v-monto').value, mon);
+    return mon === 'USD' ? Math.round(m * (App.cat.tasa || 0)) : m;
+  },
+
+  proponer() {
+    const v = this.sel;
+    if (!v || !v.tarjeta) return;
+    clearTimeout(this._t);
+    this._t = setTimeout(async () => {
+      const cop = this.montoCop();
+      if (!(cop > 0)) { this.q('#v-ayuda').textContent = ''; return; }
+      try {
+        const r = await api('proponerPagoTarjeta', v.nombre, cop);
+        if (!r.esTarjeta) return;
+        if (!this.liberadoEditado) this.q('#v-liberado').value = Math.round(r.liberado).toLocaleString('es-CO');
+        this.q('#v-ayuda').textContent = r.deuda === null
+          ? 'Configura el cupo total de ' + r.tarjeta + ' en el backoffice para calcular los intereses.'
+          : 'Según tus registros debes ' + fCOP(r.deuda) + ' en ' + r.tarjeta + '. Si pagas más, la diferencia se registra como intereses.';
+        this.intereses();
+      } catch (e) {}
+    }, 400);
+  },
+
+  intereses() {
+    const lib = parseMonto(this.q('#v-liberado').value, 'COP') || 0;
+    this.q('#v-intereses').textContent = fCOP(Math.max((this.montoCop() || 0) - lib, 0));
+  },
+
+  async guardarValor(btn) {
+    const q = this.q, v = this.sel;
+    const valor = parseMonto(q('#v-valormes').value, 'COP');
+    if (!(valor >= 0)) return (q('#v-error').textContent = 'Escribe el valor del mes.');
+    try {
+      await App.guardar('establecerValorVariable', { nombre: v.nombre, valor }, btn);
+      this.abrir(v.nombre);
+    } catch (e) { q('#v-error').textContent = mensajeError(e); }
+  },
+
+  async pagar(btn) {
+    const q = this.q, v = this.sel;
+    const err = m => { q('#v-error').textContent = m; };
+    err('');
+    const mon = q('#v-moneda').value;
+    const monto = parseMonto(q('#v-monto').value, mon);
+    if (!(monto > 0)) return err('Escribe el valor pagado.');
+    if (!q('#v-metodo').value) return err('Elige desde dónde pagaste.');
+    const d = { nombre: v.nombre, monto, moneda: mon, cuenta: q('#v-metodo').value, fecha: q('#v-fecha').value };
+    if (v.tarjeta && q('#v-liberado').value.trim()) {
+      const lib = parseMonto(q('#v-liberado').value, 'COP');
+      if (lib > this.montoCop()) return err('El cupo liberado no puede ser mayor que el pago.');
+      d.liberado = lib;
+    }
+    try {
+      await App.guardar('registrarPagoVariable', d, btn);
+      this.sel = null; this.pintar(); window.scrollTo(0, 0);
+    } catch (e) { err(mensajeError(e)); }
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'suscripciones', orden: 4,
+  titulo: 'Suscripciones', descripcion: 'Spotify, Apple One, ChatGPT…',
+
+  html: `
+    <div class="grupo">
+      <div class="celda"><span class="k">Pagado este periodo</span><span class="num" id="u-total"></span></div>
+    </div>
+    <div class="grupo" id="u-lista"><div class="celda vacio">Cargando…</div></div>
+
+    <div id="u-form" hidden>
+      <div class="seccion" id="u-titulo"></div>
+      <div class="grupo">
+        <label class="celda"><span class="k">Valor</span><input id="u-valor" type="text" inputmode="decimal" autocomplete="off"></label>
+        <div class="celda"><span class="k">Moneda</span><select id="u-moneda"><option>COP</option><option>USD</option></select></div>
+        <div class="celda"><span class="k">Método de pago</span><span class="sel"><select id="u-metodo"></select></span></div>
+        <div class="celda"><span class="k">Fecha</span>
+          <span style="display:flex;gap:8px;align-items:center"><input id="u-fecha" type="datetime-local" class="fecha-pill"><button class="mini-btn" type="button" id="u-hoy">Hoy</button></span></div>
+      </div>
+      <div class="error" id="u-error" role="alert"></div>
+      <button class="btn" type="button" id="u-guardar">Registrar pago</button>
+      <button class="btn" type="button" id="u-cancelar" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Cancelar</button>
+    </div>
+  `,
+
+  pagos: {},
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    segmentar(q('#u-moneda'));
+    q('#u-lista').addEventListener('click', e => { const b = e.target.closest('[data-u]'); if (b) this.abrir(b.dataset.u); });
+    q('#u-hoy').onclick = () => { q('#u-fecha').value = ahoraLocal(); };
+    q('#u-cancelar').onclick = () => { this.sel = null; this.pintar(); window.scrollTo(0, 0); };
+    q('#u-guardar').onclick = ev => this.guardar(ev.currentTarget);
+  },
+
+  async alAbrir() {
+    this.sel = null;
+    this.pintar();
+    try { this.pagos = await api('obtenerPagosSuscripciones'); } catch (e) { this.pagos = {}; }
+    this.pintar();
+  },
+
+  pintar() {
+    const q = this.q, subs = App.cat.suscripciones;
+    q('#u-total').textContent = fCOP(Object.values(this.pagos).reduce((s, v) => s + v, 0));
+    q('#u-lista').innerHTML = subs.map(s => {
+      const pag = this.pagos[s.nombre];
+      return `<button class="celda tocable" type="button" data-u="${esc(s.nombre)}">
+        <span>${esc(s.nombre)}<div class="peq">${s.valor ? fMon(s.valor, s.moneda) : 'Sin valor habitual'}${s.metodo ? ', ' + esc(s.metodo) : ''}</div></span>
+        <span style="text-align:right">${pag ? '<span class="sobra">Pagada</span><div class="peq num">' + fCOP(pag) + '</div>' : '<span class="chev"></span>'}</span>
+      </button>`;
+    }).join('') || '<div class="celda vacio">No hay suscripciones activas.</div>';
+    q('#u-form').hidden = !this.sel;
+  },
+
+  abrir(nombre) {
+    const q = this.q;
+    const s = App.cat.suscripciones.find(x => x.nombre === nombre);
+    this.sel = s;
+    this.pintar();
+    q('#u-titulo').textContent = s.nombre + (this.pagos[s.nombre] ? ' (ya pagada este periodo)' : '');
+    q('#u-error').textContent = '';
+    q('#u-moneda').value = s.moneda || 'COP'; segmentar(q('#u-moneda'));
+    q('#u-valor').value = s.valor ? (s.moneda === 'USD' ? String(s.valor).replace('.', ',') : Math.round(s.valor).toLocaleString('es-CO')) : '';
+    q('#u-metodo').innerHTML = opcionesCuentas('<option value="">Elige…</option>');
+    q('#u-metodo').value = s.metodo || '';
+    q('#u-fecha').value = ahoraLocal();
+    q('#u-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  async guardar(btn) {
+    const q = this.q, s = this.sel;
+    const err = m => { q('#u-error').textContent = m; };
+    err('');
+    const mon = q('#u-moneda').value;
+    const monto = parseMonto(q('#u-valor').value, mon);
+    if (!(monto > 0)) return err('Escribe el valor.');
+    if (!q('#u-metodo').value) return err('Elige el método de pago.');
+    try {
+      await App.guardar('registrarGasto', {
+        categoria: 'Multimedia', motivo: s.nombre, ref: 'SUS:' + s.nombre, fecha: q('#u-fecha').value,
+        lineas: [{ monto, moneda: mon, cuenta: q('#u-metodo').value }],
+      }, btn);
+      this.alAbrir(); window.scrollTo(0, 0);
+    } catch (e) { err(mensajeError(e)); }
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'ingreso', orden: 5,
+  titulo: 'Ingresos', descripcion: 'Sana, CodeHS y otros',
+
+  html: `
+    <div class="seccion">Esperados este periodo</div>
+    <div class="grupo" id="n-esperados"></div>
+    <div class="grupo"><button class="celda tocable" type="button" id="n-otro" style="color:var(--acento)">+ Registrar otro ingreso</button></div>
+
+    <div id="n-form" hidden>
+      <div class="seccion" id="n-titulo"></div>
+      <div class="grupo">
+        <div class="celda" id="n-fuente-c"><span class="k">Fuente</span><span class="sel"><select id="n-fuente"></select></span></div>
+        <label class="celda" id="n-motivo-c"><span class="k">Motivo</span><input id="n-motivo" type="text" placeholder="Pago de Carlos, venta…" autocomplete="off"></label>
+        <label class="celda"><span class="k">Valor recibido</span><input id="n-valor" type="text" inputmode="decimal" autocomplete="off"></label>
+        <div class="celda"><span class="k">Moneda</span><select id="n-moneda"><option>COP</option><option>USD</option></select></div>
+        <div class="celda"><span class="k">Entró a</span><span class="sel"><select id="n-cuenta"></select></span></div>
+        <div class="celda"><span class="k">Fecha</span>
+          <span style="display:flex;gap:8px;align-items:center"><input id="n-fecha" type="datetime-local" class="fecha-pill"><button class="mini-btn" type="button" id="n-hoy">Hoy</button></span></div>
+      </div>
+      <p class="ayuda" id="n-ayuda"></p>
+      <div class="error" id="n-error" role="alert"></div>
+      <button class="btn" type="button" id="n-guardar">Registrar ingreso</button>
+      <button class="btn" type="button" id="n-cancelar" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Cancelar</button>
+    </div>
+  `,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    segmentar(q('#n-moneda'));
+    q('#n-esperados').addEventListener('click', e => { const b = e.target.closest('[data-i]'); if (b) this.abrir(Number(b.dataset.i)); });
+    q('#n-otro').onclick = () => this.abrir(null);
+    q('#n-hoy').onclick = () => { q('#n-fecha').value = ahoraLocal(); };
+    q('#n-cancelar').onclick = () => { this.sel = undefined; this.pintar(); window.scrollTo(0, 0); };
+    q('#n-guardar').onclick = ev => this.guardar(ev.currentTarget);
+    ['#n-valor', '#n-moneda'].forEach(s => q(s).addEventListener('input', () => this.ayuda()));
+  },
+
+  alAbrir() { this.sel = undefined; this.pintar(); },
+
+  pintar() {
+    const q = this.q, esp = App.est.periodo.ingresosEsperados || [];
+    q('#n-esperados').innerHTML = esp.map((i, k) => `
+      <button class="celda${i.recibido ? '' : ' tocable'}" type="button" data-i="${k}"${i.recibido ? ' disabled' : ''}>
+        <span>${esc(i.fuente)}<div class="peq">${fDia(i.fecha)}</div></span>
+        <span style="text-align:right">${i.recibido
+          ? '<span class="sobra num">' + fCOP(i.valorRecibido) + '</span><div class="peq">recibido</div>'
+          : '<span class="cuadra">Pendiente</span>'}</span>
+      </button>`).join('') || '<div class="celda vacio">No hay ingresos esperados en este periodo.</div>';
+    q('#n-form').hidden = this.sel === undefined;
+  },
+
+  abrir(k) {
+    const q = this.q, cat = App.cat;
+    const esp = k === null ? null : App.est.periodo.ingresosEsperados[k];
+    this.sel = esp;
+    this.pintar();
+    q('#n-error').textContent = '';
+    q('#n-titulo').textContent = esp ? esp.fuente + ', ' + fDia(esp.fecha) : 'Otro ingreso';
+    q('#n-fuente-c').hidden = !!esp;
+    q('#n-motivo-c').hidden = !!esp;
+    q('#n-fuente').innerHTML = cat.fuentes.map(f => `<option>${esc(f.nombre)}</option>`).join('') + '<option>Otro</option>';
+    q('#n-motivo').value = '';
+    const fuente = esp ? cat.fuentes.find(f => f.nombre === esp.fuente) || {} : {};
+    const mon = (esp && esp.moneda) || 'COP';
+    q('#n-moneda').value = mon; segmentar(q('#n-moneda'));
+    const v = esp ? (esp.valor || fuente.valor) : null;
+    q('#n-valor').value = v ? (mon === 'USD' ? String(v).replace('.', ',') : Math.round(v).toLocaleString('es-CO')) : '';
+    q('#n-cuenta').innerHTML = opcionesCuentas('<option value="">Elige…</option>');
+    q('#n-cuenta').value = (esp && esp.cuenta) || '';
+    q('#n-fecha').value = ahoraLocal();
+    this.ayuda();
+    q('#n-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  ayuda() {
+    const q = this.q;
+    const mon = q('#n-moneda').value, v = parseMonto(q('#n-valor').value, mon);
+    q('#n-ayuda').textContent = mon === 'USD' && v > 0 && App.cat.tasa
+      ? 'Equivale a ' + fCOP(v * App.cat.tasa) + ' con la tasa de ' + fCOP(App.cat.tasa) + '.' : '';
+  },
+
+  async guardar(btn) {
+    const q = this.q, esp = this.sel;
+    const err = m => { q('#n-error').textContent = m; };
+    err('');
+    const mon = q('#n-moneda').value;
+    const monto = parseMonto(q('#n-valor').value, mon);
+    if (!(monto > 0)) return err('Escribe el valor recibido.');
+    if (!q('#n-cuenta').value) return err('Elige la cuenta donde entró el dinero.');
+    const d = { monto, moneda: mon, cuenta: q('#n-cuenta').value, fecha: q('#n-fecha').value };
+    if (esp) {
+      d.fuente = esp.fuente; d.fechaEsperada = esp.fecha;
+    } else {
+      d.fuente = q('#n-fuente').value;
+      d.motivo = q('#n-motivo').value.trim();
+      if (d.fuente === 'Otro' && !d.motivo) return err('Escribe el motivo del ingreso.');
+    }
+    try {
+      await App.guardar('registrarIngreso', d, btn);
+      this.sel = undefined; this.pintar(); window.scrollTo(0, 0);
+    } catch (e) { err(mensajeError(e)); }
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'saldos', orden: 6, tab: true, icono: 'billetera',
+  titulo: 'Saldos', descripcion: 'Actualiza lo que tienes en cada cuenta',
+
+  html: `
+    <p class="subtitulo">Escribe lo que ves hoy en la app de cada banco. Las que dejes vacías conservan su último saldo.</p>
+
+    <div class="seccion">Cuentas</div>
+    <div class="grupo" id="s-cuentas"></div>
+
+    <div class="seccion">Tarjetas (cupo disponible)</div>
+    <div class="grupo" id="s-tarjetas"></div>
+
+    <div class="error" id="s-error" role="alert"></div>
+    <button class="btn" type="button" id="s-guardar">Guardar saldos</button>
+
+    <div id="s-ajuste" hidden>
+      <div class="seccion" style="margin-top:28px">Ajustar diferencia</div>
+      <div class="grupo">
+        <div class="celda"><span class="k">Diferencia actual</span><span class="num" id="s-dif"></span></div>
+        <div class="celda"><span class="k">Cuenta</span><span class="sel"><select id="s-aj-cuenta"></select></span></div>
+        <label class="celda"><span class="k">Motivo</span><input id="s-aj-motivo" type="text" placeholder="Cuota de manejo, 4x1000…" autocomplete="off"></label>
+      </div>
+      <p class="ayuda" style="margin-top:-6px">Úsalo solo si sabes de dónde viene la diferencia y no es un gasto que olvidaste registrar.</p>
+      <button class="btn" type="button" id="s-ajustar" style="background:var(--relleno);color:var(--tinta);box-shadow:none">Registrar ajuste</button>
+    </div>
+  `,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    q('#s-guardar').onclick = ev => this.guardar(ev.currentTarget);
+    q('#s-ajustar').onclick = ev => this.ajustar(ev.currentTarget);
+  },
+
+  alAbrir() { this.pintar(); },
+
+  fila(c) {
+    const ult = c.real !== null && c.real !== undefined
+      ? 'Último: ' + fMon(c.real, c.moneda) + (c.fechaReal ? ', ' + fDia(c.fechaReal) : '')
+      : 'Sin saldo registrado';
+    return `<label class="celda">
+      <span>${esc(c.nombre)}<div class="peq">${esc(ult)}</div></span>
+      <input data-cuenta="${esc(c.nombre)}" data-moneda="${c.moneda}" type="text" inputmode="decimal"
+        placeholder="${c.moneda === 'USD' ? 'US$0,00' : '$0'}" autocomplete="off" style="max-width:45%">
+    </label>`;
+  },
+
+  pintar() {
+    const q = this.q, e = App.est;
+    q('#s-error').textContent = '';
+    q('#s-cuentas').innerHTML = e.cuentas.filter(c => !c.esTarjeta).map(c => this.fila(c)).join('') ||
+      '<div class="celda vacio">No hay cuentas activas.</div>';
+    q('#s-tarjetas').innerHTML = e.cuentas.filter(c => c.esTarjeta).map(c => this.fila(c)).join('') ||
+      '<div class="celda vacio">No hay tarjetas activas.</div>';
+
+    // Ajuste: solo si ya hay saldos reales y no cuadra
+    const hayReal = e.cuentas.some(c => c.real !== null);
+    const dif = Math.round(e.disponible.totalReal - e.disponible.totalEsperado);
+    q('#s-ajuste').hidden = !hayReal || Math.abs(dif) < 1;
+    if (!q('#s-ajuste').hidden) {
+      q('#s-dif').innerHTML = `<span class="${dif < 0 ? 'falta' : 'sobra'}">${dif < 0 ? '' : '+'}${fCOP(dif)}</span>`;
+      q('#s-aj-cuenta').innerHTML = opcionesCuentas();
+      q('#s-aj-motivo').value = '';
+    }
+  },
+
+  async guardar(boton) {
+    const q = this.q;
+    const saldos = [];
+    let invalido = false;
+    this.el.querySelectorAll('input[data-cuenta]').forEach(i => {
+      if (!i.value.trim()) return;
+      const v = parseMonto(i.value.replace(/^-/, ''), i.dataset.moneda);
+      if (isNaN(v)) { invalido = true; return; }
+      saldos.push({ cuenta: i.dataset.cuenta, saldo: i.value.trim().startsWith('-') ? -v : v });
+    });
+    if (invalido) return (q('#s-error').textContent = 'Revisa los valores: hay alguno que no es un número.');
+    if (!saldos.length) return (q('#s-error').textContent = 'Escribe al menos un saldo.');
+    try {
+      await App.guardar('actualizarSaldos', { saldos }, boton);
+      App.ir('inicio');
+    } catch (e) {
+      q('#s-error').textContent = mensajeError(e);
+    }
+  },
+
+  async ajustar(boton) {
+    const q = this.q, e = App.est;
+    const nombre = q('#s-aj-cuenta').value;
+    const c = App.cat.cuentas.find(x => x.nombre === nombre);
+    const difCop = Math.round(e.disponible.totalReal - e.disponible.totalEsperado);
+    const diferencia = c && c.moneda === 'USD' ? Math.round((difCop / (e.tasa || 1)) * 100) / 100 : difCop;
+    try {
+      await App.guardar('registrarAjuste', {
+        cuenta: nombre, diferencia, motivo: q('#s-aj-motivo').value.trim() || 'Ajuste de saldo',
+      }, boton);
+      App.ir('inicio');
+    } catch (err) {}
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'amigos', orden: 7,
+  titulo: 'Cuentas con amigos', descripcion: 'Quién te debe y a quién le debes',
+
+  html: `
+    <div class="grupo">
+      <div class="celda"><span class="k">Te deben</span><span class="num sobra" id="a-meDeben"></span></div>
+      <div class="celda"><span class="k">Debes</span><span class="num falta" id="a-debo"></span></div>
+    </div>
+    <div class="grupo" id="a-lista"></div>
+
+    <div id="a-form" hidden>
+      <div class="seccion" id="a-titulo"></div>
+      <div class="grupo">
+        <label class="celda"><span class="k">Valor</span><input id="a-valor" type="text" inputmode="decimal" autocomplete="off"></label>
+        <div class="celda"><span class="k">Moneda</span><select id="a-moneda"><option>COP</option><option>USD</option></select></div>
+        <div class="celda"><span class="k" id="a-cuenta-l">Cuenta</span><span class="sel"><select id="a-cuenta"></select></span></div>
+        <div class="celda"><span class="k">Fecha</span>
+          <span style="display:flex;gap:8px;align-items:center"><input id="a-fecha" type="datetime-local" class="fecha-pill"><button class="mini-btn" type="button" id="a-hoy">Hoy</button></span></div>
+      </div>
+      <p class="ayuda">Si es un pago parcial, cambia el valor y el resto queda pendiente.</p>
+      <div class="error" id="a-error" role="alert"></div>
+      <button class="btn" type="button" id="a-guardar"></button>
+      <button class="btn" type="button" id="a-cancelar" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Cancelar</button>
+    </div>
+  `,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    segmentar(q('#a-moneda'));
+    q('#a-lista').addEventListener('click', e => { const b = e.target.closest('[data-a]'); if (b) this.abrir(b.dataset.a); });
+    q('#a-hoy').onclick = () => { q('#a-fecha').value = ahoraLocal(); };
+    q('#a-cancelar').onclick = () => { this.sel = null; this.pintar(); window.scrollTo(0, 0); };
+    q('#a-guardar').onclick = ev => this.guardar(ev.currentTarget);
+  },
+
+  alAbrir() { this.sel = null; this.pintar(); },
+
+  pintar() {
+    const q = this.q, am = App.est.amigos || [];
+    q('#a-meDeben').textContent = fCOP(am.filter(a => a.saldo > 0).reduce((s, a) => s + a.saldo, 0));
+    q('#a-debo').textContent = fCOP(am.filter(a => a.saldo < 0).reduce((s, a) => s - a.saldo, 0));
+    q('#a-lista').innerHTML = am.sort((a, b) => b.saldo - a.saldo).map(a => `
+      <button class="celda tocable" type="button" data-a="${esc(a.persona)}">
+        <span>${esc(a.persona)}<div class="peq">${a.saldo > 0 ? 'Te debe' : 'Le debes'}</div></span>
+        <span class="num ${a.saldo > 0 ? 'sobra' : 'falta'}">${fCOP(Math.abs(a.saldo))}</span>
+      </button>`).join('') || '<div class="celda vacio">Estás a paz y salvo con todos.</div>';
+    q('#a-form').hidden = !this.sel;
+  },
+
+  abrir(persona) {
+    const q = this.q;
+    const a = App.est.amigos.find(x => x.persona === persona);
+    this.sel = a;
+    this.pintar();
+    const meDebe = a.saldo > 0;
+    q('#a-error').textContent = '';
+    q('#a-titulo').textContent = meDebe ? persona + ' te paga' : 'Le pagas a ' + persona;
+    q('#a-cuenta-l').textContent = meDebe ? 'Entró a' : 'Pagado desde';
+    q('#a-valor').value = Math.round(Math.abs(a.saldo)).toLocaleString('es-CO');
+    q('#a-moneda').value = 'COP'; segmentar(q('#a-moneda'));
+    q('#a-cuenta').innerHTML = opcionesCuentas('<option value="">Elige…</option>');
+    q('#a-fecha').value = ahoraLocal();
+    q('#a-guardar').textContent = meDebe ? 'Registrar pago recibido' : 'Registrar pago enviado';
+    q('#a-form').scrollIntoView({ behavior: 'smooth', block: 'start' });
+  },
+
+  async guardar(btn) {
+    const q = this.q, a = this.sel;
+    const err = m => { q('#a-error').textContent = m; };
+    err('');
+    const mon = q('#a-moneda').value;
+    const monto = parseMonto(q('#a-valor').value, mon);
+    if (!(monto > 0)) return err('Escribe el valor.');
+    if (!q('#a-cuenta').value) return err('Elige la cuenta.');
+    try {
+      await App.guardar('registrarPagoAmigo', {
+        persona: a.persona, monto, moneda: mon, cuenta: q('#a-cuenta').value, fecha: q('#a-fecha').value,
+        direccion: a.saldo > 0 ? 'recibido' : 'enviado',
+      }, btn);
+      this.sel = null; this.pintar(); window.scrollTo(0, 0);
+    } catch (e) { err(mensajeError(e)); }
+  },
+});
+</script>
+
+<script>
+App.registrar({
+  id: 'resumen', orden: 1.5,
+  titulo: 'Resumen', descripcion: 'Ingresos, gastos y pendientes por periodo',
+
+  html: `
+    <div class="grupo">
+      <div class="celda"><span class="k">Periodo</span><span class="sel"><select id="r-periodo"></select></span></div>
+    </div>
+    <div id="r-cuerpo"><div class="grupo"><div class="celda vacio">Cargando…</div></div></div>
+  `,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    q('#r-periodo').onchange = () => this.cargar(q('#r-periodo').value);
+  },
+
+  alAbrir() { this.cargar(''); },
+
+  async cargar(etiqueta) {
+    const q = this.q;
+    q('#r-cuerpo').style.opacity = '.5';
+    try {
+      const d = await api('obtenerResumenApp', etiqueta);
+      q('#r-periodo').innerHTML = d.etiquetas.map((e, i) => `<option${i === d.idx ? ' selected' : ''}>${esc(e)}</option>`).join('');
+      this.pintar(d);
+    } catch (e) {
+      q('#r-cuerpo').innerHTML = '<div class="grupo"><div class="celda error" style="margin:0">' + esc(mensajeError(e)) + '</div></div>';
+    }
+    q('#r-cuerpo').style.opacity = '';
+  },
+
+  pintar(d) {
+    const balance = d.ingresos - d.gastos;
+    const fila = (izq, der, clase) => `<div class="celda"><span>${izq}</span><span class="num ${clase || ''}" style="text-align:right">${der}</span></div>`;
+    const vacio = t => `<div class="celda vacio">${t}</div>`;
+    const estado = e => `<span class="${e === 'Pagado' || e === 'Recibido' ? 'sobra' : e === 'Pendiente' ? 'cuadra' : 'peq'}">${e}</span>`;
+
+    const cats = Object.keys(d.porCat).sort((a, b) => d.porCat[b] - d.porCat[a]);
+    const max = Math.max(1, ...cats.map(c => d.porCat[c]));
+    const catsHtml = cats.map(c => `
+      <div class="celda" style="flex-direction:column;align-items:stretch;gap:6px">
+        <div style="display:flex;justify-content:space-between;gap:12px"><span>${esc(c)}</span>
+          <span class="num">${fCOP(d.porCat[c])} <span class="peq">${d.gastos ? Math.round(d.porCat[c] / d.gastos * 100) : 0}%</span></span></div>
+        <div style="height:6px;border-radius:99px;background:var(--relleno);overflow:hidden">
+          <div style="height:100%;width:${Math.round(d.porCat[c] / max * 100)}%;background:var(--acento);border-radius:99px"></div></div>
+      </div>`).join('');
+
+    const mets = Object.keys(d.porMetodo).sort((a, b) => d.porMetodo[b] - d.porMetodo[a]);
+
+    this.q('#r-cuerpo').innerHTML = `
+      <div class="seccion">Este periodo</div>
+      <div class="grupo">
+        ${fila('Ingresos', fCOP(d.ingresos), 'sobra')}
+        ${fila('Gastos', fCOP(d.gastos))}
+        ${fila('Balance', (balance > 0 ? '+' : '') + fCOP(balance), balance < 0 ? 'falta' : 'sobra')}
+      </div>
+
+      <div class="seccion">Gastos por categoría</div>
+      <div class="grupo">${catsHtml || vacio('Sin gastos en este periodo.')}</div>
+
+      <div class="seccion">Gastos por método de pago</div>
+      <div class="grupo">${mets.map(m => fila(esc(m), fCOP(d.porMetodo[m]))).join('') || vacio('Sin gastos en este periodo.')}</div>
+
+      <div class="seccion">Gastos fijos</div>
+      <div class="grupo">${d.fijos.map(f => fila(esc(f.nombre) + '<div class="peq num">' + fCOP(f.valor) + '</div>',
+        estado(f.pagado ? 'Pagado' : 'Pendiente') + (f.cuenta ? '<div class="peq">' + esc(f.cuenta) + '</div>' : ''))).join('') || vacio('No hay gastos fijos.')}</div>
+
+      <div class="seccion">Deudas y tarjetas</div>
+      <div class="grupo">${d.variables.map(v => fila(esc(v.nombre) + '<div class="peq num">' + (v.valorMes === null ? 'Sin valor del mes' : fCOP(v.valorMes)) + '</div>',
+        estado(v.estado) + (v.cuenta ? '<div class="peq">' + esc(v.cuenta) + '</div>' : ''))).join('') || vacio('No hay deudas ni tarjetas.')}</div>
+
+      <div class="seccion">Ingresos esperados</div>
+      <div class="grupo">${d.esperados.map(i => fila(esc(i.fuente) + '<div class="peq">' + fDia(i.fecha) + '</div>',
+        estado(i.recibido ? 'Recibido' : 'Pendiente') + (i.recibido ? '<div class="peq num">' + fCOP(i.valorRecibido) + '</div>' : ''))).join('') || vacio('No hay ingresos esperados.')}</div>
+    `;
+  },
+});
+</script>
+
+
+<script>
+App.iniciar();
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(() => {});
+</script>
+</body>
+</html>
