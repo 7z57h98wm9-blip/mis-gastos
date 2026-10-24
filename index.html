@@ -139,6 +139,15 @@ input.fecha-pill { flex: none !important; background: var(--relleno) !important;
 .toast { position: fixed; left: 50%; transform: translateX(-50%); bottom: calc(env(safe-area-inset-bottom, 0px) + 86px);
   padding: 12px 18px; border-radius: 99px; font-size: 15px; width: max-content; max-width: 90vw; z-index: 20; color: var(--tinta); }
 .toast.error { color: var(--rojo); }
+.plegable { display: flex; align-items: center; justify-content: space-between; width: 100%; border: 0; background: none;
+  font: inherit; font-size: 15px; font-weight: 600; color: var(--tinta-2); padding: 14px 16px 8px; cursor: pointer; text-align: left; }
+.pl-der { display: flex; align-items: center; gap: 10px; }
+.pl-chev { font-size: 22px; line-height: 1; color: var(--tinta-3); transition: transform .2s; }
+.plegable[aria-expanded="true"] .pl-chev { transform: rotate(90deg); }
+.plegable + .grupo, .plegable + div > .grupo:first-child { margin-top: 0; }
+.ojo { position: absolute; top: 12px; right: 12px; width: 40px; height: 40px; border-radius: 50%; border: 0;
+  background: var(--relleno); color: var(--tinta); display: flex; align-items: center; justify-content: center; cursor: pointer; }
+.ojo svg { width: 22px; height: 22px; }
 .cargando { text-align: center; color: var(--tinta-3); padding: 120px 0; }
 
 /* Líneas del pago dividido */
@@ -166,7 +175,16 @@ input.fecha-pill { flex: none !important; background: var(--relleno) !important;
     <p class="subtitulo" id="i-periodo"></p>
 
     <div class="grupo">
-      <div class="celda destacado"><span class="k">Disponible</span><span class="grande num" id="i-disp"></span></div>
+      <div class="celda destacado" style="padding-right:64px">
+        <span class="k">Disponible</span><span class="grande num" id="i-disp"></span>
+        <button class="ojo" type="button" id="i-ojo"></button>
+      </div>
+    </div>
+
+    <button class="plegable" type="button" data-plegar="p-detalle" aria-expanded="false" aria-controls="p-detalle">
+      <span>Detalle del disponible</span><span class="pl-der"><span class="punto" id="i-dif-punto" style="margin:0"></span><span class="pl-chev" aria-hidden="true">›</span></span>
+    </button>
+    <div class="grupo" id="p-detalle" hidden>
       <div class="celda"><span class="k">En pesos</span><span class="num" id="i-cop"></span></div>
       <div class="celda"><span class="k">En dólares</span><span class="num" style="text-align:right" id="i-usd"></span></div>
       <div class="celda"><span class="k">Cupo en tarjetas</span><span class="num" id="i-tarjetas"></span></div>
@@ -174,7 +192,7 @@ input.fecha-pill { flex: none !important; background: var(--relleno) !important;
       <div class="celda"><span class="k">Diferencia</span><span class="num" style="display:flex;align-items:center" id="i-dif"></span></div>
     </div>
 
-    <div class="grupo">
+    <div class="grupo" style="margin-top:10px">
       <div class="celda">
         <div>Tasa USD <strong class="num" id="i-tasa"></strong><div class="peq" id="i-tasa-fecha"></div></div>
         <button class="mini-btn" type="button" id="i-tasa-editar">Actualizar</button>
@@ -185,16 +203,22 @@ input.fecha-pill { flex: none !important; background: var(--relleno) !important;
       </div>
     </div>
 
-    <div class="seccion">Este periodo</div>
-    <div class="grupo">
+    <button class="plegable" type="button" data-plegar="p-periodo" aria-expanded="false" aria-controls="p-periodo">
+      <span>Este periodo</span><span class="pl-chev" aria-hidden="true">›</span>
+    </button>
+    <div class="grupo" id="p-periodo" hidden>
       <div class="celda"><span class="k">Ingresos</span><span class="num pos" id="i-ing"></span></div>
       <div class="celda"><span class="k">Gastos</span><span class="num" id="i-gas"></span></div>
       <div id="i-cats"></div>
     </div>
 
-    <div class="seccion">Últimos registros</div>
-    <div class="grupo" id="i-ultimos"></div>
-    <div class="grupo"><button class="celda peligro" type="button" id="i-deshacer">Deshacer último registro</button></div>
+    <button class="plegable" type="button" data-plegar="p-ultimos" aria-expanded="false" aria-controls="p-ultimos">
+      <span>Últimos registros</span><span class="pl-chev" aria-hidden="true">›</span>
+    </button>
+    <div id="p-ultimos" hidden>
+      <div class="grupo" id="i-ultimos"></div>
+      <div class="grupo"><button class="celda peligro" type="button" id="i-deshacer">Deshacer último registro</button></div>
+    </div>
   </section>
 
   <section id="v-config" hidden>
@@ -207,6 +231,21 @@ input.fecha-pill { flex: none !important; background: var(--relleno) !important;
     <div class="error" id="c-error" role="alert"></div>
     <button class="btn" type="button" id="c-guardar">Conectar</button>
     <button class="btn" type="button" id="c-reintentar" hidden style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Reintentar sin cambiar nada</button>
+  </section>
+
+  <section id="v-barra" hidden>
+    <h1 class="titulo">Barra inferior</h1>
+    <p class="subtitulo">Elige qué va en cada lugar. El botón + siempre queda en el centro y Más al final.</p>
+    <div class="grupo">
+      <div class="celda"><span class="k">Lugar 1</span><span class="sel"><select id="b-1"></select></span></div>
+      <div class="celda"><span class="k">Lugar 2</span><span class="sel"><select id="b-2"></select></span></div>
+      <div class="celda"><span class="k">Centro</span><span>+ Registrar gasto</span></div>
+      <div class="celda"><span class="k">Lugar 3</span><span class="sel"><select id="b-3"></select></span></div>
+      <div class="celda"><span class="k">Último</span><span>Más</span></div>
+    </div>
+    <div class="error" id="b-error" role="alert"></div>
+    <button class="btn" type="button" id="b-guardar">Guardar</button>
+    <button class="btn" type="button" id="b-defecto" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:6px">Volver al orden original</button>
   </section>
 
   <section id="v-mas" hidden>
@@ -290,6 +329,13 @@ function segmentar(sel) {
   sel._seg();
 }
 const ICONOS = {
+  ojo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  ojoNo: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3l18 18"/><path d="M10.6 5.1A10.7 10.7 0 0 1 12 5c6.4 0 10 7 10 7a17.6 17.6 0 0 1-3.2 4.1M6.6 6.6C3.7 8.5 2 12 2 12s3.6 7 10 7a9.8 9.8 0 0 0 5.4-1.6"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></svg>',
+  grafico: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M5 20V11M12 20V4M19 20v-6"/></svg>',
+  tarjeta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h3"/></svg>',
+  repetir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></svg>',
+  entrada: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>',
+  personas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2A5 5 0 0 1 21 19"/></svg>',
   inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>',
   mas: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
   sumar: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
@@ -298,6 +344,21 @@ const ICONOS = {
 };
 
 /* ---------- App ---------- */
+const BARRA = 'misgastos.barra', OCULTO = 'misgastos.oculto';
+const BARRA_DEFECTO = ['inicio', 'saldos', 'fijos'];
+const TAB_INFO = {
+  inicio: ['Inicio', 'inicio'], saldos: ['Saldos', 'billetera'], fijos: ['Fijos', 'calendario'],
+  resumen: ['Resumen', 'grafico'], variables: ['Deudas', 'tarjeta'], suscripciones: ['Suscrip.', 'repetir'],
+  ingreso: ['Ingresos', 'entrada'], amigos: ['Amigos', 'personas'],
+};
+function leerBarra() {
+  try {
+    const b = JSON.parse(localStorage.getItem(BARRA));
+    if (Array.isArray(b) && b.length === 3 && b.every(x => TAB_INFO[x]) && new Set(b).size === 3) return b;
+  } catch (e) {}
+  return BARRA_DEFECTO.slice();
+}
+
 const App = {
   cat: null, est: null, pantallas: [], actual: 'inicio', anterior: 'inicio',
 
@@ -339,7 +400,42 @@ const App = {
     };
   },
 
-  esRaiz(id) { return id === 'inicio' || id === 'mas' || this.pantallas.some(p => p.id === id && p.tab); },
+  barra: leerBarra(),
+  oculto: (() => { try { return localStorage.getItem(OCULTO) === '1'; } catch (e) { return false; } })(),
+
+  esRaiz(id) { return id === 'mas' || this.barra.indexOf(id) !== -1; },
+
+  /** Dibuja la barra inferior y la lista de Más según la configuración del usuario. */
+  pintarBarra() {
+    const principal = this.pantallas.find(p => p.principal);
+    const existe = id => id === 'inicio' || this.pantallas.some(p => p.id === id);
+    const b = this.barra.filter(existe);
+    const tabBtn = id => `<button class="tab" type="button" data-ir="${id}">${ICONOS[TAB_INFO[id][1]] || ICONOS.mas}${esc(TAB_INFO[id][0])}</button>`;
+    document.getElementById('tabbar').innerHTML =
+      b.slice(0, 2).map(tabBtn).join('') +
+      (principal ? `<button class="fab" type="button" data-ir="${principal.id}" aria-label="${esc(principal.titulo)}">${ICONOS.sumar}</button>` : '') +
+      b.slice(2).map(tabBtn).join('') +
+      `<button class="tab" type="button" data-ir="mas">${ICONOS.mas}Más</button>`;
+
+    const otras = [];
+    if (b.indexOf('inicio') === -1) otras.push({ id: 'inicio', titulo: 'Inicio', descripcion: 'Disponible, periodo y últimos registros' });
+    this.pantallas.filter(p => !p.principal && b.indexOf(p.id) === -1).forEach(p => otras.push(p));
+    document.getElementById('mas-lista').innerHTML = otras.length
+      ? otras.map(p => `<button class="celda tocable" type="button" data-ir="${p.id}"><span>${esc(p.titulo)}<div class="peq">${esc(p.descripcion || '')}</div></span><span class="chev"></span></button>`).join('')
+      : '<div class="celda vacio">Todo está en la barra inferior.</div>';
+  },
+
+  abrirBarra() {
+    const $ = id => document.getElementById(id);
+    const opciones = Object.keys(TAB_INFO).filter(id => id === 'inicio' || this.pantallas.some(p => p.id === id));
+    const nombre = id => id === 'inicio' ? 'Inicio' : this.pantallas.find(p => p.id === id).titulo;
+    ['b-1', 'b-2', 'b-3'].forEach((sid, i) => {
+      $(sid).innerHTML = opciones.map(id => `<option value="${id}">${esc(nombre(id))}</option>`).join('');
+      $(sid).value = this.barra[i];
+    });
+    $('b-error').textContent = '';
+    this.ir('barra');
+  },
 
   construir() {
     const main = document.querySelector('.app');
@@ -352,26 +448,44 @@ const App = {
       if (p.montar) p.montar(s);
     });
 
-    // Barra inferior: Inicio, pestañas, botón +, pestañas, Más
-    const tabs = this.pantallas.filter(p => p.tab);
-    const principal = this.pantallas.find(p => p.principal);
-    const mitad = Math.ceil(tabs.length / 2);
-    const tabBtn = (id, t, ic) => `<button class="tab" type="button" data-ir="${id}">${ICONOS[ic] || ICONOS.mas}${esc(t)}</button>`;
-    document.getElementById('tabbar').innerHTML =
-      tabBtn('inicio', 'Inicio', 'inicio') +
-      tabs.slice(0, mitad).map(p => tabBtn(p.id, p.tabTitulo || p.titulo, p.icono)).join('') +
-      (principal ? `<button class="fab" type="button" data-ir="${principal.id}" aria-label="${esc(principal.titulo)}">${ICONOS.sumar}</button>` : '') +
-      tabs.slice(mitad).map(p => tabBtn(p.id, p.tabTitulo || p.titulo, p.icono)).join('') +
-      tabBtn('mas', 'Más', 'mas');
-
-    // Lista de "Más"
-    const otras = this.pantallas.filter(p => !p.tab && !p.principal);
-    document.getElementById('mas-lista').innerHTML = otras.length
-      ? otras.map(p => `<button class="celda tocable" type="button" data-ir="${p.id}"><span>${esc(p.titulo)}<div class="peq">${esc(p.descripcion || '')}</div></span><span class="chev"></span></button>`).join('')
-      : '<div class="celda vacio">Las demás opciones llegan en el siguiente paso.</div>';
+    this.pintarBarra();
     document.getElementById('v-mas').insertAdjacentHTML('beforeend',
       '<div class="seccion">App</div><div class="grupo"><button class="celda tocable" type="button" id="mas-conexion"><span>Conexión con tu Google Sheet<div class="peq">Cambiar URL o clave</div></span><span class="chev"></span></button></div>');
     document.getElementById('mas-conexion').onclick = () => this.mostrarConfig('');
+    document.getElementById('mas-conexion').parentNode.insertAdjacentHTML('afterbegin',
+      '<button class="celda tocable" type="button" id="mas-barra"><span>Personalizar barra inferior<div class="peq">Elige qué va en cada lugar</div></span><span class="chev"></span></button>');
+    document.getElementById('mas-barra').onclick = () => this.abrirBarra();
+
+    // Personalizar barra
+    document.getElementById('b-guardar').onclick = () => {
+      const sel = ['b-1', 'b-2', 'b-3'].map(id => document.getElementById(id).value);
+      if (new Set(sel).size !== 3) return (document.getElementById('b-error').textContent = 'Cada lugar debe tener una opción distinta.');
+      this.barra = sel;
+      try { localStorage.setItem(BARRA, JSON.stringify(sel)); } catch (e) {}
+      this.pintarBarra();
+      toast('Barra actualizada');
+      this.ir('mas');
+    };
+    document.getElementById('b-defecto').onclick = () => {
+      BARRA_DEFECTO.forEach((v, i) => { document.getElementById('b-' + (i + 1)).value = v; });
+      document.getElementById('b-guardar').click();
+    };
+
+    // Secciones plegables (siempre arrancan cerradas)
+    document.querySelectorAll('[data-plegar]').forEach(btn => {
+      btn.onclick = () => {
+        const abierto = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!abierto));
+        document.getElementById(btn.dataset.plegar).hidden = abierto;
+      };
+    });
+
+    // Mostrar u ocultar saldos
+    document.getElementById('i-ojo').onclick = () => {
+      this.oculto = !this.oculto;
+      try { localStorage.setItem(OCULTO, this.oculto ? '1' : '0'); } catch (e) {}
+      this.pintarInicio();
+    };
 
     document.addEventListener('click', e => {
       const b = e.target.closest('[data-ir]');
@@ -418,6 +532,7 @@ const App = {
     document.querySelectorAll('.app > section').forEach(s => { s.hidden = s.id !== 'v-' + id; });
     const raiz = this.esRaiz(id);
     document.getElementById('nav').hidden = raiz;
+    if (id === 'barra' || (id === 'inicio' && !this.esRaiz('inicio'))) this.anterior = 'mas';
     document.getElementById('volver-t').textContent = this.anterior === 'mas' ? 'Más' :
       (this.pantallas.find(p => p.id === this.anterior) || { titulo: 'Inicio' }).titulo;
     document.querySelectorAll('.tab').forEach(t => {
@@ -454,10 +569,13 @@ const App = {
     const e = this.est, d = e.disponible;
     const $ = id => document.getElementById(id);
     $('i-periodo').textContent = 'Periodo del ' + fDia(e.periodo.inicio) + ' al ' + fDia(e.periodo.fin);
-    $('i-disp').textContent = fCOP(d.totalEsperado);
-    $('i-cop').textContent = fCOP(d.copEsperado);
-    $('i-usd').innerHTML = fUSD(d.usdEsperado) + '<div class="peq">' + fCOP(d.usdEnCop) + ' en pesos</div>';
-    $('i-tarjetas').textContent = fCOP(d.tarjetasEsperado);
+    const oc = this.oculto, M = v => (oc ? '******' : v);
+    $('i-ojo').innerHTML = oc ? ICONOS.ojoNo : ICONOS.ojo;
+    $('i-ojo').setAttribute('aria-label', oc ? 'Mostrar saldos' : 'Ocultar saldos');
+    $('i-disp').textContent = M(fCOP(d.totalEsperado));
+    $('i-cop').textContent = M(fCOP(d.copEsperado));
+    $('i-usd').innerHTML = M(fUSD(d.usdEsperado)) + '<div class="peq">' + M(fCOP(d.usdEnCop)) + ' en pesos</div>';
+    $('i-tarjetas').textContent = M(fCOP(d.tarjetasEsperado));
     $('i-tasa').textContent = e.tasa ? fCOP(e.tasa) : 'sin configurar';
     $('i-tasa-fecha').textContent = 'Actualizada ' + hace(e.tasaActualizada);
 
@@ -465,14 +583,16 @@ const App = {
     if (!hayReal) {
       $('i-real').innerHTML = '<span class="peq">Sin registrar</span>';
       $('i-dif').innerHTML = '<span class="peq">Actualiza tus saldos para comparar</span>';
+      $('i-dif-punto').style.background = 'var(--relleno)';
     } else {
       const dif = Math.round(d.totalReal - d.totalEsperado);
       const [clase, color, texto] = Math.abs(dif) < 1 ? ['cuadra', 'var(--ambar)', fCOP(0)]
         : dif < 0 ? ['falta', 'var(--rojo)', fCOP(dif)]
         : ['sobra', 'var(--verde)', '+' + fCOP(dif)];
       const fecha = e.cuentas.map(c => c.fechaReal).filter(Boolean).sort().pop();
-      $('i-real').innerHTML = fCOP(d.totalReal) + (fecha ? '<div class="peq">Actualizado el ' + fDia(fecha) + '</div>' : '');
-      $('i-dif').innerHTML = `<span class="punto" style="background:${color}"></span><span class="${clase}">${texto}</span>`;
+      $('i-dif-punto').style.background = color;
+      $('i-real').innerHTML = M(fCOP(d.totalReal)) + (fecha ? '<div class="peq">Actualizado el ' + fDia(fecha) + '</div>' : '');
+      $('i-dif').innerHTML = `<span class="punto" style="background:${color}"></span><span class="${clase}">${M(texto)}</span>`;
     }
 
     $('i-ing').textContent = fCOP(e.resumen.ingresos);
