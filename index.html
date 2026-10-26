@@ -335,6 +335,7 @@ const ICONOS = {
   tarjeta: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="5.5" width="18" height="13" rx="3"/><path d="M3 10h18M7 15h3"/></svg>',
   repetir: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3l3 3-3 3"/><path d="M4 11V9a3 3 0 0 1 3-3h13"/><path d="M7 21l-3-3 3-3"/><path d="M20 13v2a3 3 0 0 1-3 3H4"/></svg>',
   entrada: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 4v11M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>',
+  lista: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"><path d="M9 6h11M9 12h11M9 18h11"/><circle cx="4.5" cy="6" r="1"/><circle cx="4.5" cy="12" r="1"/><circle cx="4.5" cy="18" r="1"/></svg>',
   personas: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="9" cy="8" r="3.2"/><path d="M3 19a6 6 0 0 1 12 0"/><circle cx="17" cy="9" r="2.5"/><path d="M16 14.2A5 5 0 0 1 21 19"/></svg>',
   inicio: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M3 10.5 12 3l9 7.5"/><path d="M5 9.5V20h14V9.5"/></svg>',
   mas: '<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.8"/><circle cx="12" cy="12" r="1.8"/><circle cx="19" cy="12" r="1.8"/></svg>',
@@ -349,7 +350,7 @@ const BARRA_DEFECTO = ['inicio', 'saldos', 'fijos'];
 const TAB_INFO = {
   inicio: ['Inicio', 'inicio'], saldos: ['Saldos', 'billetera'], fijos: ['Fijos', 'calendario'],
   resumen: ['Resumen', 'grafico'], variables: ['Deudas', 'tarjeta'], suscripciones: ['Suscrip.', 'repetir'],
-  ingreso: ['Ingresos', 'entrada'], amigos: ['Amigos', 'personas'],
+  ingreso: ['Ingresos', 'entrada'], amigos: ['Amigos', 'personas'], movimientos: ['Registros', 'lista'],
 };
 function leerBarra() {
   try {
@@ -1605,7 +1606,25 @@ App.registrar({
 
     const mets = Object.keys(d.porMetodo).sort((a, b) => d.porMetodo[b] - d.porMetodo[a]);
 
-    this.q('#r-cuerpo').innerHTML = `
+    let despues = '';
+    if (d.idx === 0 && App.est) {
+      const e = App.est, M = v => (App.oculto ? '******' : v);
+      const fijosPend = e.fijos.filter(f => !f.pagado).reduce((s, f) => s + (f.valor || 0), 0);
+      const deudasPend = e.variables.reduce((s, v) => s + (v.pendiente || 0), 0);
+      const sinValor = e.variables.filter(v => v.valorMes === null && !v.pagado).length;
+      const queda = e.disponible.totalEsperado - fijosPend - deudasPend;
+      despues = `
+      <div class="seccion">Después de pagos</div>
+      <div class="grupo">
+        ${fila('Disponible hoy', M(fCOP(e.disponible.totalEsperado)))}
+        ${fila('Fijos pendientes', M((fijosPend ? '−' : '') + fCOP(fijosPend)), fijosPend ? 'cuadra' : '')}
+        ${fila('Deudas pendientes', M((deudasPend ? '−' : '') + fCOP(deudasPend)), deudasPend ? 'cuadra' : '')}
+        <div class="celda destacado"><span class="k">Te queda</span><span class="grande num ${queda < 0 ? 'falta' : ''}">${M(fCOP(queda))}</span></div>
+      </div>
+      ${sinValor ? '<p class="ayuda">' + sinValor + (sinValor === 1 ? ' deuda no tiene' : ' deudas no tienen') + ' valor del mes, así que no se descuentan. Ponlo en Deudas y tarjetas para que el cálculo sea completo.</p>' : ''}`;
+    }
+
+    this.q('#r-cuerpo').innerHTML = despues + `
       <div class="seccion">Este periodo</div>
       <div class="grupo">
         ${fila('Ingresos', fCOP(d.ingresos), 'sobra')}
@@ -1635,6 +1654,161 @@ App.registrar({
 });
 </script>
 
+
+<script>
+App.registrar({
+  id: 'movimientos', orden: 1.6,
+  titulo: 'Registros', descripcion: 'Ver, editar o eliminar lo que registraste',
+
+  html: `
+    <div id="m-vista-lista">
+      <div class="grupo">
+        <div class="celda"><span class="k">Periodo</span><span class="sel"><select id="m-periodo"></select></span></div>
+        <label class="celda"><span class="k">Buscar</span><input id="m-buscar" type="search" placeholder="Motivo, categoría o cuenta" autocomplete="off"></label>
+      </div>
+      <div class="grupo" id="m-lista"><div class="celda vacio">Cargando…</div></div>
+    </div>
+
+    <div id="m-vista-form" hidden>
+      <div class="seccion" id="m-titulo"></div>
+      <div class="grupo">
+        <div class="celda"><span class="k">Fecha</span>
+          <span style="display:flex;gap:8px;align-items:center"><input id="m-fecha" type="datetime-local" class="fecha-pill"><button class="mini-btn" type="button" id="m-hoy">Hoy</button></span></div>
+        <label class="celda" id="m-motivo-c"><span class="k">Motivo</span><input id="m-motivo" type="text" autocomplete="off"></label>
+        <div class="celda" id="m-cat-c"><span class="k">Categoría</span><span class="sel"><select id="m-cat"></select></span></div>
+        <div class="celda" id="m-tipo-c"><span class="k">Tipo de cobro</span><span class="sel"><select id="m-tipo"></select></span></div>
+        <label class="celda" id="m-valor-c"><span class="k">Valor</span><input id="m-valor" type="text" inputmode="decimal" autocomplete="off"></label>
+        <div class="celda" id="m-moneda-c"><span class="k">Moneda</span><select id="m-moneda"><option>COP</option><option>USD</option></select></div>
+        <div class="celda" id="m-cuenta-c"><span class="k">Cuenta</span><span class="sel"><select id="m-cuenta"></select></span></div>
+      </div>
+      <p class="ayuda" id="m-nota"></p>
+      <div class="error" id="m-error" role="alert"></div>
+      <button class="btn" type="button" id="m-guardar">Guardar cambios</button>
+      <div class="grupo" style="margin-top:18px"><button class="celda peligro" type="button" id="m-eliminar">Eliminar registro</button></div>
+      <button class="btn" type="button" id="m-cancelar" style="background:transparent;color:var(--acento);box-shadow:none;margin-top:0">Cancelar</button>
+    </div>
+  `,
+
+  datos: null, sel: null,
+
+  montar(el) {
+    const q = s => el.querySelector(s);
+    this.q = q;
+    segmentar(q('#m-moneda'));
+    q('#m-periodo').onchange = () => this.cargar(q('#m-periodo').value);
+    q('#m-buscar').addEventListener('input', () => this.pintarLista());
+    q('#m-lista').addEventListener('click', e => { const b = e.target.closest('[data-g]'); if (b) this.abrir(b.dataset.g); });
+    q('#m-hoy').onclick = () => { q('#m-fecha').value = ahoraLocal(); };
+    q('#m-cat').onchange = () => { q('#m-tipo-c').hidden = q('#m-cat').value !== 'Gastos bancarios'; };
+    q('#m-cancelar').onclick = () => this.cerrar();
+    q('#m-guardar').onclick = ev => this.guardar(ev.currentTarget);
+    q('#m-eliminar').onclick = ev => this.eliminar(ev.currentTarget);
+  },
+
+  alAbrir() { this.cerrar(); this.q('#m-buscar').value = ''; this.cargar(''); },
+
+  async cargar(etiqueta) {
+    const q = this.q;
+    q('#m-lista').style.opacity = '.5';
+    try {
+      this.datos = await api('listarMovimientos', etiqueta);
+      q('#m-periodo').innerHTML = this.datos.etiquetas.map((t, i) => `<option${i === this.datos.idx ? ' selected' : ''}>${esc(t)}</option>`).join('');
+      this.pintarLista();
+    } catch (e) {
+      q('#m-lista').innerHTML = '<div class="celda error" style="margin:0">' + esc(mensajeError(e)) + '</div>';
+    }
+    q('#m-lista').style.opacity = '';
+  },
+
+  pintarLista() {
+    const q = this.q, f = q('#m-buscar').value.trim().toLowerCase();
+    const lista = (this.datos ? this.datos.lista : []).filter(m => !f ||
+      [m.motivo, m.categoria, m.sub, m.cuenta].join(' ').toLowerCase().indexOf(f) !== -1);
+    q('#m-lista').innerHTML = lista.map(m => `
+      <button class="celda tocable" type="button" data-g="${esc(m.grupo)}">
+        <span>${esc(m.motivo)}<div class="peq">${m.fecha ? fDia(m.fecha) : ''}${m.categoria ? ', ' + esc(m.categoria) : ''}${m.cuenta ? ', ' + esc(m.cuenta) : ''}</div></span>
+        <span class="num ${m.valor > 0 ? 'pos' : ''}" style="text-align:right">${m.valor ? (m.valor > 0 ? '+' : '') + fCOP(m.valor) : ''}${m.partes > 1 ? '<div class="peq">' + m.partes + ' partes</div>' : ''}</span>
+      </button>`).join('') || '<div class="celda vacio">' + (f ? 'No hay registros que coincidan.' : 'No hay registros en este periodo.') + '</div>';
+  },
+
+  abrir(grupo) {
+    const q = this.q, m = this.datos.lista.find(x => x.grupo === grupo), e = m.editable, cat = App.cat;
+    this.sel = m;
+    q('#m-vista-lista').hidden = true;
+    q('#m-vista-form').hidden = false;
+    q('#m-titulo').textContent = m.motivo;
+    q('#m-error').textContent = '';
+    q('#m-fecha').value = m.fecha;
+    q('#m-motivo-c').hidden = !e.motivo;
+    q('#m-motivo').value = m.motivo;
+    q('#m-cat-c').hidden = !e.categoria;
+    const cats = cat.categorias.slice();
+    if (m.categoria && cats.indexOf(m.categoria) === -1) cats.push(m.categoria);
+    if (cats.indexOf('Multimedia') === -1) cats.push('Multimedia');
+    q('#m-cat').innerHTML = cats.map(c => `<option>${esc(c)}</option>`).join('');
+    q('#m-cat').value = m.categoria;
+    q('#m-tipo').innerHTML = cat.tiposBancarios.map(t => `<option>${esc(t)}</option>`).join('');
+    q('#m-tipo').value = m.sub || cat.tiposBancarios[0] || '';
+    q('#m-tipo-c').hidden = !e.categoria || m.categoria !== 'Gastos bancarios';
+    q('#m-valor-c').hidden = q('#m-moneda-c').hidden = !e.monto;
+    q('#m-cuenta-c').hidden = !e.cuenta;
+    if (e.monto) {
+      q('#m-moneda').value = m.moneda; segmentar(q('#m-moneda'));
+      q('#m-valor').value = m.moneda === 'USD' ? String(m.monto).replace('.', ',') : Math.round(m.monto).toLocaleString('es-CO');
+    }
+    q('#m-cuenta').innerHTML = '<option value="">Ninguna (no afecta saldos)</option>' + opcionesCuentas();
+    q('#m-cuenta').value = m.cuenta || '';
+    q('#m-nota').textContent = m.partes > 1
+      ? 'Este registro tiene ' + m.partes + ' partes (pago dividido, compartido o pago de tarjeta). Puedes cambiar la fecha' + (e.motivo ? ', el motivo' : '') + (e.categoria ? ' y la categoría' : '') + '. Para cambiar valores, elimínalo y regístralo de nuevo.'
+      : (!e.motivo && !e.monto ? 'En este tipo de registro solo se puede cambiar la fecha.' : '');
+    this.armado = null;
+    q('#m-eliminar').textContent = 'Eliminar registro';
+    window.scrollTo(0, 0);
+  },
+
+  cerrar() {
+    this.sel = null;
+    this.q('#m-vista-form').hidden = true;
+    this.q('#m-vista-lista').hidden = false;
+  },
+
+  async guardar(btn) {
+    const q = this.q, m = this.sel, e = m.editable;
+    const err = t => { q('#m-error').textContent = t; };
+    err('');
+    const d = { grupo: m.grupo, fecha: q('#m-fecha').value };
+    if (!d.fecha) return err('Elige la fecha.');
+    if (e.motivo) { d.motivo = q('#m-motivo').value.trim(); if (!d.motivo) return err('Escribe el motivo.'); }
+    if (e.categoria) { d.categoria = q('#m-cat').value; d.subcategoria = q('#m-tipo').value; }
+    if (e.monto) {
+      d.moneda = q('#m-moneda').value;
+      d.monto = parseMonto(q('#m-valor').value, d.moneda);
+      if (!(d.monto > 0)) return err('Escribe un valor mayor que cero.');
+    }
+    if (e.cuenta) d.cuenta = q('#m-cuenta').value;
+    try {
+      await App.guardar('editarMovimiento', d, btn);
+      this.cerrar();
+      this.cargar(q('#m-periodo').value);
+    } catch (x) { err(mensajeError(x)); }
+  },
+
+  async eliminar(btn) {
+    if (!this.armado) {
+      btn.textContent = 'Toca otra vez para eliminar';
+      this.armado = setTimeout(() => { this.armado = null; btn.textContent = 'Eliminar registro'; }, 4000);
+      return;
+    }
+    clearTimeout(this.armado); this.armado = null;
+    try {
+      await App.guardar('eliminarMovimiento', this.sel.grupo, btn);
+      this.cerrar();
+      this.cargar(this.q('#m-periodo').value);
+    } catch (x) { this.q('#m-error').textContent = mensajeError(x); }
+    btn.textContent = 'Eliminar registro';
+  },
+});
+</script>
 
 <script>
 App.iniciar();
