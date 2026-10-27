@@ -192,6 +192,19 @@ input.fecha-pill { flex: none !important; background: var(--relleno) !important;
       <div class="celda"><span class="k">Diferencia</span><span class="num" style="display:flex;align-items:center" id="i-dif"></span></div>
     </div>
 
+    <button class="plegable" type="button" data-plegar="p-despues" aria-expanded="false" aria-controls="p-despues">
+      <span>Después de pagos</span><span class="pl-chev" aria-hidden="true">›</span>
+    </button>
+    <div id="p-despues" hidden>
+      <div class="grupo" style="margin-bottom:8px">
+        <div class="celda"><span class="k">Disponible hoy</span><span class="num" id="i-dp-disp"></span></div>
+        <div class="celda"><span class="k">Fijos pendientes</span><span class="num" id="i-dp-fijos"></span></div>
+        <div class="celda"><span class="k">Deudas pendientes</span><span class="num" id="i-dp-deudas"></span></div>
+        <div class="celda destacado"><span class="k">Te queda</span><span class="grande num" id="i-dp-queda"></span></div>
+      </div>
+      <p class="ayuda" id="i-dp-nota" style="margin-top:0"></p>
+    </div>
+
     <div class="grupo" style="margin-top:10px">
       <div class="celda">
         <div>Tasa USD <strong class="num" id="i-tasa"></strong><div class="peq" id="i-tasa-fecha"></div></div>
@@ -358,6 +371,17 @@ function leerBarra() {
     if (Array.isArray(b) && b.length === 3 && b.every(x => TAB_INFO[x]) && new Set(b).size === 3) return b;
   } catch (e) {}
   return BARRA_DEFECTO.slice();
+}
+
+/** Disponible después de pagar fijos y deudas pendientes del periodo actual. */
+function calcularDespues(e) {
+  const fijos = e.fijos.filter(f => !f.pagado).reduce((s, f) => s + (f.valor || 0), 0);
+  const deudas = e.variables.reduce((s, v) => s + (v.pendiente || 0), 0);
+  const sinValor = e.variables.filter(v => v.valorMes === null && !v.pagado).length;
+  return { disp: e.disponible.totalEsperado, fijos, deudas, sinValor, queda: e.disponible.totalEsperado - fijos - deudas };
+}
+function notaSinValor(n) {
+  return n ? n + (n === 1 ? ' deuda no tiene' : ' deudas no tienen') + ' valor del mes, así que no se descuenta' + (n === 1 ? '' : 'n') + '. Ponlo en Deudas y tarjetas para que el cálculo sea completo.' : '';
 }
 
 const App = {
@@ -595,6 +619,16 @@ const App = {
       $('i-real').innerHTML = M(fCOP(d.totalReal)) + (fecha ? '<div class="peq">Actualizado el ' + fDia(fecha) + '</div>' : '');
       $('i-dif').innerHTML = `<span class="punto" style="background:${color}"></span><span class="${clase}">${M(texto)}</span>`;
     }
+
+    const dp = calcularDespues(e);
+    $('i-dp-disp').textContent = M(fCOP(dp.disp));
+    $('i-dp-fijos').textContent = M((dp.fijos ? '−' : '') + fCOP(dp.fijos));
+    $('i-dp-fijos').className = 'num' + (dp.fijos ? ' cuadra' : '');
+    $('i-dp-deudas').textContent = M((dp.deudas ? '−' : '') + fCOP(dp.deudas));
+    $('i-dp-deudas').className = 'num' + (dp.deudas ? ' cuadra' : '');
+    $('i-dp-queda').textContent = M(fCOP(dp.queda));
+    $('i-dp-queda').className = 'grande num' + (dp.queda < 0 ? ' falta' : '');
+    $('i-dp-nota').textContent = notaSinValor(dp.sinValor);
 
     $('i-ing').textContent = fCOP(e.resumen.ingresos);
     $('i-gas').textContent = fCOP(e.resumen.totalGastos);
@@ -1609,10 +1643,8 @@ App.registrar({
     let despues = '';
     if (d.idx === 0 && App.est) {
       const e = App.est, M = v => (App.oculto ? '******' : v);
-      const fijosPend = e.fijos.filter(f => !f.pagado).reduce((s, f) => s + (f.valor || 0), 0);
-      const deudasPend = e.variables.reduce((s, v) => s + (v.pendiente || 0), 0);
-      const sinValor = e.variables.filter(v => v.valorMes === null && !v.pagado).length;
-      const queda = e.disponible.totalEsperado - fijosPend - deudasPend;
+      const dp = calcularDespues(e);
+      const fijosPend = dp.fijos, deudasPend = dp.deudas, sinValor = dp.sinValor, queda = dp.queda;
       despues = `
       <div class="seccion">Después de pagos</div>
       <div class="grupo">
@@ -1621,7 +1653,7 @@ App.registrar({
         ${fila('Deudas pendientes', M((deudasPend ? '−' : '') + fCOP(deudasPend)), deudasPend ? 'cuadra' : '')}
         <div class="celda destacado"><span class="k">Te queda</span><span class="grande num ${queda < 0 ? 'falta' : ''}">${M(fCOP(queda))}</span></div>
       </div>
-      ${sinValor ? '<p class="ayuda">' + sinValor + (sinValor === 1 ? ' deuda no tiene' : ' deudas no tienen') + ' valor del mes, así que no se descuentan. Ponlo en Deudas y tarjetas para que el cálculo sea completo.</p>' : ''}`;
+      ${sinValor ? '<p class="ayuda">' + notaSinValor(sinValor) + '</p>' : ''}`;
     }
 
     this.q('#r-cuerpo').innerHTML = despues + `
