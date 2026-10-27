@@ -611,7 +611,7 @@ const App = {
       $('i-dif').innerHTML = '<span class="peq">Actualiza tus saldos para comparar</span>';
       $('i-dif-punto').style.background = 'var(--relleno)';
     } else {
-      const dif = Math.round(d.totalReal - d.totalEsperado);
+      const dif = Math.round(d.diferencia !== undefined ? d.diferencia : d.totalReal - d.totalEsperado);
       const [clase, color, texto] = Math.abs(dif) < 1 ? ['cuadra', 'var(--ambar)', fCOP(0)]
         : dif < 0 ? ['falta', 'var(--rojo)', fCOP(dif)]
         : ['sobra', 'var(--verde)', '+' + fCOP(dif)];
@@ -1414,37 +1414,41 @@ App.registrar({
 
     <div class="error" id="s-error" role="alert"></div>
     <button class="btn" type="button" id="s-guardar">Guardar saldos</button>
-
-    <div id="s-ajuste" hidden>
-      <div class="seccion" style="margin-top:28px">Ajustar diferencia</div>
-      <div class="grupo">
-        <div class="celda"><span class="k">Diferencia actual</span><span class="num" id="s-dif"></span></div>
-        <div class="celda"><span class="k">Cuenta</span><span class="sel"><select id="s-aj-cuenta"></select></span></div>
-        <label class="celda"><span class="k">Motivo</span><input id="s-aj-motivo" type="text" placeholder="Cuota de manejo, 4x1000…" autocomplete="off"></label>
-      </div>
-      <p class="ayuda" style="margin-top:-6px">Úsalo solo si sabes de dónde viene la diferencia y no es un gasto que olvidaste registrar.</p>
-      <button class="btn" type="button" id="s-ajustar" style="background:var(--relleno);color:var(--tinta);box-shadow:none">Registrar ajuste</button>
-    </div>
+    <p class="ayuda" style="margin-top:14px">“Esperado” es lo que debería haber según tus registros. Si una cuenta no cuadra y ya sabes por qué (cuota de manejo, 4x1000, un saldo inicial desactualizado), toca Ajustar. Si es un gasto que olvidaste, mejor regístralo con su fecha.</p>
   `,
 
   montar(el) {
     const q = s => el.querySelector(s);
     this.q = q;
     q('#s-guardar').onclick = ev => this.guardar(ev.currentTarget);
-    q('#s-ajustar').onclick = ev => this.ajustar(ev.currentTarget);
+    el.addEventListener('click', ev => {
+      const b = ev.target.closest('[data-ajustar]');
+      if (b) this.ajustar(b);
+    });
   },
 
   alAbrir() { this.pintar(); },
 
   fila(c) {
-    const ult = c.real !== null && c.real !== undefined
-      ? 'Último: ' + fMon(c.real, c.moneda) + (c.fechaReal ? ', ' + fDia(c.fechaReal) : '')
-      : 'Sin saldo registrado';
-    return `<label class="celda">
-      <span>${esc(c.nombre)}<div class="peq">${esc(ult)}</div></span>
+    const tieneReal = c.real !== null && c.real !== undefined;
+    const ult = tieneReal ? 'Último: ' + fMon(c.real, c.moneda) + (c.fechaReal ? ', ' + fDia(c.fechaReal) : '') : 'Sin saldo registrado';
+    let comp = '';
+    if (!c.esTarjeta && c.esperado !== null && c.esperado !== undefined) {
+      comp = '<div class="peq">Esperado: ' + fMon(c.esperado, c.moneda) + '</div>';
+      if (tieneReal && c.estado !== 'igual' && c.diferencia !== null) {
+        const cls = c.diferencia < 0 ? 'falta' : 'sobra';
+        comp += `<div style="display:flex;align-items:center;gap:8px;margin-top:4px">
+          <span class="peq ${cls}" style="color:inherit"><span class="${cls}">${c.diferencia > 0 ? '+' : ''}${fMon(c.diferencia, c.moneda)}</span></span>
+          <button class="mini-btn" type="button" data-ajustar="${esc(c.nombre)}" style="padding:3px 10px;font-size:13px">Ajustar</button></div>`;
+      } else if (tieneReal && c.estado === 'igual') {
+        comp += '<div class="peq cuadra" style="margin-top:2px">Cuadra</div>';
+      }
+    }
+    return `<div class="celda" style="align-items:flex-start">
+      <span>${esc(c.nombre)}<div class="peq">${esc(ult)}</div>${comp}</span>
       <input data-cuenta="${esc(c.nombre)}" data-moneda="${c.moneda}" type="text" inputmode="decimal"
-        placeholder="${c.moneda === 'USD' ? 'US$0,00' : '$0'}" autocomplete="off" style="max-width:45%">
-    </label>`;
+        placeholder="${c.moneda === 'USD' ? 'US$0,00' : '$0'}" autocomplete="off" aria-label="Saldo de ${esc(c.nombre)}" style="max-width:42%;margin-top:6px">
+    </div>`;
   },
 
   pintar() {
@@ -1454,16 +1458,6 @@ App.registrar({
       '<div class="celda vacio">No hay cuentas activas.</div>';
     q('#s-tarjetas').innerHTML = e.cuentas.filter(c => c.esTarjeta).map(c => this.fila(c)).join('') ||
       '<div class="celda vacio">No hay tarjetas activas.</div>';
-
-    // Ajuste: solo si ya hay saldos reales y no cuadra
-    const hayReal = e.cuentas.some(c => c.real !== null);
-    const dif = Math.round(e.disponible.totalReal - e.disponible.totalEsperado);
-    q('#s-ajuste').hidden = !hayReal || Math.abs(dif) < 1;
-    if (!q('#s-ajuste').hidden) {
-      q('#s-dif').innerHTML = `<span class="${dif < 0 ? 'falta' : 'sobra'}">${dif < 0 ? '' : '+'}${fCOP(dif)}</span>`;
-      q('#s-aj-cuenta').innerHTML = opcionesCuentas();
-      q('#s-aj-motivo').value = '';
-    }
   },
 
   async guardar(boton) {
@@ -1480,24 +1474,26 @@ App.registrar({
     if (!saldos.length) return (q('#s-error').textContent = 'Escribe al menos un saldo.');
     try {
       await App.guardar('actualizarSaldos', { saldos }, boton);
-      App.ir('inicio');
+      this.pintar();
+      window.scrollTo(0, 0);
     } catch (e) {
       q('#s-error').textContent = mensajeError(e);
     }
   },
 
-  async ajustar(boton) {
-    const q = this.q, e = App.est;
-    const nombre = q('#s-aj-cuenta').value;
-    const c = App.cat.cuentas.find(x => x.nombre === nombre);
-    const difCop = Math.round(e.disponible.totalReal - e.disponible.totalEsperado);
-    const diferencia = c && c.moneda === 'USD' ? Math.round((difCop / (e.tasa || 1)) * 100) / 100 : difCop;
+  async ajustar(btn) {
+    const c = App.est.cuentas.find(x => x.nombre === btn.dataset.ajustar);
+    if (!c) return;
+    if (btn.dataset.armado !== '1') {
+      btn.dataset.armado = '1';
+      btn.textContent = 'Confirmar';
+      setTimeout(() => { if (btn.isConnected) { btn.dataset.armado = ''; btn.textContent = 'Ajustar'; } }, 4000);
+      return;
+    }
     try {
-      await App.guardar('registrarAjuste', {
-        cuenta: nombre, diferencia, motivo: q('#s-aj-motivo').value.trim() || 'Ajuste de saldo',
-      }, boton);
-      App.ir('inicio');
-    } catch (err) {}
+      await App.guardar('registrarAjuste', { cuenta: c.nombre, diferencia: c.diferencia, motivo: 'Ajuste de saldo ' + c.nombre }, btn);
+      this.pintar();
+    } catch (e) {}
   },
 });
 </script>
