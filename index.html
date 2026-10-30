@@ -98,6 +98,9 @@ h1.titulo { font-size: 34px; font-weight: 700; letter-spacing: -.02em; margin: 8
 .seg button[aria-pressed="true"] { background: var(--seg-on);
   box-shadow: 0 2px 6px rgba(0, 0, 0, .12), inset 0 1px 0 var(--vidrio-luz); }
 .seg.mini { margin: 0; flex: none; }
+.seg-desliza { overflow-x: auto; scroll-snap-type: x proximity; -webkit-overflow-scrolling: touch; scrollbar-width: none; }
+.seg-desliza::-webkit-scrollbar { display: none; }
+.seg-desliza button { flex: none; padding: 8px 16px; scroll-snap-align: start; }
 .seg.mini button { padding: 5px 12px; font-size: 14px; }
 input.switch { -webkit-appearance: none; appearance: none; width: 51px; height: 31px; border-radius: 99px; flex: none;
   background: var(--switch-off); position: relative; margin: 0; cursor: pointer; transition: background .2s; }
@@ -651,7 +654,7 @@ App.registrar({
   titulo: 'Registrar gasto', boton: 'Registrar gasto', descripcion: 'Gastos varios, comidas o bancarios',
 
   html: `
-    <div class="seg" id="g-cats" role="group" aria-label="Categoría"></div>
+    <div class="seg seg-desliza" id="g-cats" role="group" aria-label="Categoría"></div>
 
     <div class="grupo">
       <div class="celda" id="g-banc" hidden>
@@ -716,6 +719,13 @@ App.registrar({
     </div>
 
     <div class="error" id="g-error" role="alert"></div>
+    <button class="btn" type="button" id="g-otro" style="background:var(--relleno);color:var(--tinta);box-shadow:none;margin-bottom:10px">+ Agregar otro gasto</button>
+
+    <div id="g-cola-box" hidden>
+      <div class="seccion" id="g-cola-t"></div>
+      <div class="grupo" id="g-cola"></div>
+    </div>
+
     <button class="btn" type="button" id="g-guardar">Guardar gasto</button>
   `,
 
@@ -760,11 +770,21 @@ App.registrar({
       .forEach(s => q(s).addEventListener('input', () => { this.leerLineas(); this.resumen(); }));
     q('#g-hoy').onclick = () => { q('#g-fecha').value = ahoraLocal(); };
     q('#g-guardar').onclick = ev => this.guardar(ev.currentTarget);
+    q('#g-otro').onclick = () => this.agregarOtro();
+    ['#g-motivo', '#g-valor', '#g-total', '#g-lineas'].forEach(sel => q(sel).addEventListener('input', () => { if (this.cola.length) this.textoBoton(); }));
+    q('#g-cola').addEventListener('click', e => {
+      const b = e.target.closest('[data-quitar-cola]');
+      if (!b) return;
+      this.cola.splice(Number(b.dataset.quitarCola), 1);
+      this.pintarCola();
+    });
     segmentar(q('#g-moneda'));
     segmentar(q('#g-total-moneda'));
   },
 
-  alAbrir() { this.reiniciar(); },
+  cola: [],
+
+  alAbrir() { this.cola = []; this.reiniciar(); this.pintarCola(); },
 
   reiniciar() {
     const q = this.q, cat = App.cat;
@@ -893,12 +913,13 @@ App.registrar({
     q('#g-resumen').textContent = partes.join('. ');
   },
 
-  async guardar(boton) {
+  /** Valida el formulario y devuelve el gasto listo para enviar, o null si falta algo. */
+  construir() {
     const q = this.q, S = this.S, cat = App.cat;
     const err = q('#g-error');
     err.textContent = '';
     this.leerLineas();
-    const fallo = m => { err.textContent = m; };
+    const fallo = m => { err.textContent = m; return null; };
 
     const banc = S.cat === 'Gastos bancarios';
     const d = {
@@ -946,12 +967,95 @@ App.registrar({
       if (S.comp) d.compartido = { participantes, pagador: cat.usuario };
     }
 
+    return d;
+  },
+
+  /** Hay algo escrito en el formulario actual. */
+  formularioConDatos() {
+    const q = this.q;
+    this.leerLineas();
+    return !!(q('#g-motivo').value.trim() || q('#g-valor').value.trim() || q('#g-total').value.trim() ||
+      this.S.lineas.some(l => String(l.monto).trim()));
+  },
+
+  descripcion(d) {
+    const tasa = App.cat.tasa || 0;
+    const total = d.lineas
+      ? d.lineas.reduce((s, l) => s + (l.moneda === 'USD' ? l.monto * tasa : l.monto), 0)
+      : (d.compartido.total.moneda === 'USD' ? d.compartido.total.monto * tasa : d.compartido.total.monto);
+    const como = d.lineas ? d.lineas.map(l => l.cuenta).join(' + ') : 'Pagó ' + d.compartido.pagador;
+    return { titulo: d.motivo || d.subcategoria || d.categoria, sub: d.categoria + ', ' + como, total };
+  },
+
+  pintarCola() {
+    const q = this.q, n = this.cola.length;
+    q('#g-cola-box').hidden = !n;
+    q('#g-cola-t').textContent = 'Por guardar (' + n + ')';
+    q('#g-cola').innerHTML = this.cola.map((d, i) => {
+      const x = this.descripcion(d);
+      return `<div class="celda"><span>${esc(x.titulo)}<div class="peq">${esc(x.sub)}</div></span>
+        <span style="display:flex;align-items:center;gap:6px"><span class="num">${fCOP(x.total)}</span>
+        <button class="quitar" type="button" data-quitar-cola="${i}" aria-label="Quitar ${esc(x.titulo)}">×</button></span></div>`;
+    }).join('');
+    this.textoBoton();
+  },
+
+  textoBoton() {
+    const total = this.cola.length + (this.formularioConDatos() ? 1 : 0);
+    this.q('#g-guardar').textContent = total > 1 ? 'Guardar ' + total + ' gastos' : 'Guardar gasto';
+  },
+
+  /** Deja el gasto actual en la lista y limpia el formulario (conserva categoría y fecha). */
+  agregarOtro() {
+    const d = this.construir();
+    if (!d) return;
+    this.cola.push(d);
+    const q = this.q, cat = this.S.cat, fecha = q('#g-fecha').value;
+    this.reiniciar();
+    this.S.cat = cat;
+    q('#g-fecha').value = fecha;
+    this.pintar();
+    this.pintarCola();
+    toast('Agregado. Escribe el siguiente.');
+    q('#g-motivo').focus();
+    window.scrollTo(0, 0);
+  },
+
+  async guardar(boton) {
+    const q = this.q, cat = App.cat;
+    const fallo = m => { q('#g-error').textContent = m; };
+    const lista = this.cola.slice();
+    if (!lista.length || this.formularioConDatos()) {
+      const d = this.construir();
+      if (!d) return;
+      lista.push(d);
+    }
+    boton.disabled = true;
+    q('#g-otro').disabled = true;
+    let guardados = 0;
     try {
-      await App.guardar('registrarGasto', d, boton);
-      if (S.comp) S.parts.forEach(n => { if (n !== cat.usuario && !cat.personas.includes(n)) cat.personas.push(n); });
+      for (const d of lista) {
+        boton.textContent = lista.length > 1 ? 'Guardando ' + (guardados + 1) + ' de ' + lista.length + '…' : 'Guardando…';
+        await api('registrarGasto', d);
+        guardados++;
+        if (d.compartido) d.compartido.participantes.forEach(p => { if (p.nombre !== cat.usuario && !cat.personas.includes(p.nombre)) cat.personas.push(p.nombre); });
+      }
+      await App.refrescar();
+      toast(guardados === 1 ? 'Gasto guardado' : guardados + ' gastos guardados');
+      this.cola = [];
       App.ir('inicio');
     } catch (e) {
-      fallo(mensajeError(e));
+      // Los que ya se guardaron salen de la lista; los demás quedan para reintentar.
+      this.cola = lista.slice(guardados);
+      if (guardados) { try { await App.refrescar(); } catch (x) {} }
+      this.reiniciar();
+      this.pintarCola();
+      fallo((guardados ? guardados + ' guardados. ' : '') + 'No se pudo guardar: ' + mensajeError(e) + ' Toca guardar para reintentar los que faltan.');
+      toast(mensajeError(e), true);
+    } finally {
+      boton.disabled = false;
+      q('#g-otro').disabled = false;
+      this.pintarCola();
     }
   },
 });
